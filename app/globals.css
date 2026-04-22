@@ -1,0 +1,93 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * { box-sizing: border-box; }
+  body { font-family: system-ui, -apple-system, sans-serif; }
+}
+
+@layer components {
+  /* ── Scrollbar ─────────────────────────────── */
+  .scrollbar-thin::-webkit-scrollbar       { width: 4px; height: 4px; }
+  .scrollbar-thin::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 4px; }
+
+  /* ── Input base ────────────────────────────── */
+  .input {
+    @apply w-full px-3 py-2 rounded-lg border border-gray-200 bg-gray-50
+           text-sm text-gray-900 outline-none transition
+           focus:border-brand-400 focus:bg-white;
+  }
+
+  /* ── Button variants ───────────────────────── */
+  .btn {
+    @apply inline-flex items-center justify-center gap-1.5 rounded-lg
+           px-4 py-2 text-sm font-medium transition cursor-pointer
+           disabled:opacity-40 disabled:cursor-not-allowed;
+  }
+  .btn-blue {
+    @apply btn bg-brand-400 text-white border border-brand-400
+           hover:bg-brand-600 hover:border-brand-600;
+  }
+  .btn-outline {
+    @apply btn bg-transparent border border-gray-200 text-gray-600
+           hover:bg-gray-100;
+  }
+  .btn-ghost {
+    @apply btn bg-transparent border-0 text-gray-500 hover:bg-gray-100;
+  }
+  .btn-danger {
+    @apply btn bg-transparent border border-gray-200 text-red-600
+           hover:bg-red-50 hover:border-red-200;
+  }
+  .btn-sm {
+    @apply px-2.5 py-1 text-xs rounded-md;
+  }
+
+  /* ── Card ──────────────────────────────────── */
+  .card {
+    @apply bg-white rounded-xl border border-gray-200 p-5;
+  }
+
+  /* ── Badge ─────────────────────────────────── */
+  .badge {
+    @apply inline-block px-2 py-0.5 rounded-full text-xs font-medium;
+  }
+  .badge-blue   { @apply bg-brand-50 text-brand-800; }
+  .badge-green  { @apply bg-green-50 text-green-800; }
+  .badge-amber  { @apply bg-amber-50 text-amber-700; }
+  .badge-red    { @apply bg-red-50 text-red-700; }
+  .badge-gray   { @apply bg-gray-100 text-gray-600; }
+
+  /* ── Table ─────────────────────────────────── */
+  .data-table {
+    @apply w-full text-sm border-collapse bg-white rounded-xl
+           border border-gray-200 overflow-hidden;
+  }
+  .data-table th {
+    @apply text-left px-4 py-2.5 text-xs font-medium text-gray-500
+           uppercase tracking-wide border-b border-gray-200 bg-gray-50;
+  }
+  .data-table td {
+    @apply px-4 py-2.5 border-b border-gray-100;
+  }
+  .data-table tr:last-child td { @apply border-b-0; }
+  .data-table tbody tr:hover td { @apply bg-gray-50; }
+}
+
+/* ── Print styles ──────────────────────────────── */
+@media print {
+  body * { visibility: hidden; }
+  #invoice-print-area,
+  #invoice-print-area * { visibility: visible; }
+  #invoice-print-area {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%;
+    padding: 15mm;
+    background: white;
+    font-family: 'Courier New', monospace;
+    font-size: 11pt;
+  }
+  .no-print { display: none !important; }
+}
