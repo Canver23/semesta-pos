@@ -12,7 +12,7 @@ import { Printer, Plus, X, Trash2, Eye } from 'lucide-react'
 // BUILD INVOICE HTML — layout persis seperti Excel VBA kamu
 // Kertas: 21cm × 14cm (custom "Invoice"), landscape
 // ─────────────────────────────────────────────────────────────
-export function buildInvoiceHTML(inv: Invoice): string {
+function buildInvoiceHTML(inv: Invoice): string {
   // Total baris tabel item — selalu 14 baris (sesuai Excel row 9-22)
   const TOTAL_ROWS = 14
   const itemRows = inv.items.map(item => `
@@ -312,7 +312,7 @@ export function buildInvoiceHTML(inv: Invoice): string {
 // PRINT POPUP — buka window baru, langsung print
 // Bekerja untuk SEMUA invoice (pelanggan & umum)
 // ─────────────────────────────────────────────────────────────
-export function printInvoicePopup(inv: Invoice) {
+function printInvoicePopup(inv: Invoice) {
   const w = window.open('', '_blank', 'width=900,height=650')
   if (!w) {
     alert('Pop-up diblokir browser.\nIzinkan pop-up: klik ikon kunci/info di address bar → izinkan pop-up untuk localhost.')
