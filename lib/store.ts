@@ -77,7 +77,7 @@ export const useStore = create<StoreState>()(
       })),
       allCategories: () => {
         const s = get()
-        return [...new Set([...DEFAULT_CATEGORIES, ...s.customCategories])]
+        return Array.from(new Set([...DEFAULT_CATEGORIES, ...s.customCategories]))
       },
 
       // ── Customers ─────────────────────────────────────────
