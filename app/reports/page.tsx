@@ -18,13 +18,13 @@ async function exportXLSX(
     const ws = XLSX.utils.aoa_to_sheet(rows)
 
     // Auto column widths
-    const colWidths = rows.reduce((acc, row) => {
+    const colWidths: number[] = []
+    rows.forEach(row => {
       row.forEach((cell, i) => {
         const len = String(cell ?? '').length
-        acc[i] = Math.max(acc[i] ?? 10, len + 2)
+        colWidths[i] = Math.max(colWidths[i] ?? 10, len + 2)
       })
-      return acc
-    }, [] as number[])
+    })
     ws['!cols'] = colWidths.map(w => ({ wch: Math.min(w, 40) }))
 
     // Style header row bold (xlsx community edition doesn't support cell styles,
