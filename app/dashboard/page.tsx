@@ -26,8 +26,8 @@ export default function DashboardPage() {
     { label:'Total Pelanggan',     value: String(customers.length),icon: Users,       color:'text-purple-600'},
   ]
 
-  function doReset() {
-    resetTransactions()
+  async function doReset() {
+    await resetTransactions()
     setConfirmReset(false)
   }
 
@@ -113,7 +113,7 @@ export default function DashboardPage() {
                   <td><span className="badge badge-green">{t.method}</span></td>
                   <td>
                     <button
-                      onClick={() => { if(confirm(`Hapus transaksi ${t.id}?`)) deleteTransaction(t.id) }}
+                      onClick={() => { if(confirm(`Hapus transaksi ${t.id}?`)) deleteTransaction(t.id).catch(console.error) }}
                       className="btn btn-danger btn-sm"
                     >
                       <Trash2 size={11}/>

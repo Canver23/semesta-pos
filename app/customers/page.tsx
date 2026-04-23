@@ -50,9 +50,9 @@ export default function CustomersPage() {
     setForm((p) => ({ ...p, prices: p.prices.filter((_, idx) => idx !== i) }))
   }
 
-  function save() {
+  async function save() {
     if (!form.name.trim()) return
-    editing ? updateCustomer(editing.id, form) : addCustomer(form)
+    editing ? await updateCustomer(editing.id, form) : await addCustomer(form)
     setModal(false)
   }
 
@@ -108,7 +108,7 @@ export default function CustomersPage() {
                       <FileText size={12} /> Invoice
                     </button>
                     <button
-                      onClick={() => { if (confirm(`Hapus ${c.name}?`)) deleteCustomer(c.id) }}
+                      onClick={() => { if (confirm(`Hapus ${c.name}?`)) deleteCustomer(c.id).catch(console.error) }}
                       className="btn btn-danger btn-sm"
                     >
                       <Trash2 size={12} />

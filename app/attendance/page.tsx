@@ -52,13 +52,13 @@ export default function AttendancePage() {
 
             <div className="flex gap-3 mt-5">
               <button
-                onClick={() => addAttendance('Check In')}
+                onClick={() => addAttendance('Check In').catch(console.error)}
                 className="btn-blue flex-1 py-3 text-base"
               >
                 <LogIn size={16} /> Check In
               </button>
               <button
-                onClick={() => addAttendance('Check Out')}
+                onClick={() => addAttendance('Check Out').catch(console.error)}
                 className="flex-1 py-3 text-base btn btn-outline border-amber-300 text-amber-700 hover:bg-amber-50"
               >
                 <LogOut size={16} /> Check Out

@@ -31,9 +31,9 @@ export default function InventoryPage() {
 
   function openAdd()             { setEditing(null); setForm({ ...EMPTY, category: categories[0] || 'Sterofoam' }); setModal(true) }
   function openEdit(p: Product)  { setEditing(p); setForm({ ...p }); setModal(true) }
-  function save() {
+  async function save() {
     if (!form.name.trim()) return
-    editing ? updateProduct(editing.id, form) : addProduct(form)
+    editing ? await updateProduct(editing.id, form) : await addProduct(form)
     setModal(false)
   }
   const f = (key: keyof typeof form, val: unknown) => setForm(prev => ({ ...prev, [key]: val }))
@@ -81,7 +81,7 @@ export default function InventoryPage() {
                 <td>
                   <div className="flex gap-1">
                     <button onClick={() => openEdit(p)} className="btn btn-outline btn-sm"><Pencil size={12}/> Edit</button>
-                    <button onClick={() => { if (confirm(`Hapus ${p.name}?`)) deleteProduct(p.id) }} className="btn btn-danger btn-sm"><Trash2 size={12}/></button>
+                    <button onClick={() => { if (confirm(`Hapus ${p.name}?`)) deleteProduct(p.id).catch(console.error) }} className="btn btn-danger btn-sm"><Trash2 size={12}/></button>
                   </div>
                 </td>
               </tr>
@@ -158,7 +158,7 @@ export default function InventoryPage() {
                   {customCategories.map(c => (
                     <span key={c} className="badge badge-blue flex items-center gap-1">
                       {c}
-                      <button onClick={() => deleteCategory(c)} className="hover:text-red-500 ml-0.5">
+                      <button onClick={() => deleteCategory(c).catch(console.error)} className="hover:text-red-500 ml-0.5">
                         <X size={10}/>
                       </button>
                     </span>
@@ -175,7 +175,7 @@ export default function InventoryPage() {
                   value={newCat}
                   onChange={e => setNewCat(e.target.value)}
                   placeholder="Contoh: Bubble Wrap"
-                  onKeyDown={e => { if (e.key === 'Enter') { addCategory(newCat); setNewCat('') } }}
+                  onKeyDown={e => { if (e.key === 'Enter') { addCategory(newCat).then(() => setNewCat('')) } }}
                 />
                 <button
                   onClick={() => { addCategory(newCat); setNewCat('') }}

@@ -373,11 +373,11 @@ function CreateInvoiceModal({ open, onClose, defaultCustId }:
     })
   }
 
-  function save() {
+  async function save() {
     // Validasi: umum = nama boleh kosong (default "Pembeli Umum"), pelanggan harus pilih
     if (!isUmum && !custId) return
     if (!items.length) return
-    addInvoice({
+    await addInvoice({
       custId: isUmum ? 'UMUM' : custId,
       custName,
       date, due, items, total: subtotal,
@@ -747,13 +747,13 @@ function InvoicesContent() {
                       <Printer size={12} /> Print
                     </button>
                     <button
-                      onClick={() => updateInvoiceStatus(inv.id, inv.status === 'Lunas' ? 'Belum Lunas' : 'Lunas')}
+                      onClick={() => updateInvoiceStatus(inv.id, inv.status === 'Lunas' ? 'Belum Lunas' : 'Lunas').catch(console.error)}
                       className="btn btn-outline btn-sm text-xs"
                     >
                       {inv.status === 'Lunas' ? 'Batal' : '✓ Lunas'}
                     </button>
                     <button
-                      onClick={() => { if (confirm(`Hapus ${inv.id}?`)) deleteInvoice(inv.id) }}
+                      onClick={() => { if (confirm(`Hapus ${inv.id}?`)) deleteInvoice(inv.id).catch(console.error) }}
                       className="btn btn-danger btn-sm"
                     >
                       <Trash2 size={12} />

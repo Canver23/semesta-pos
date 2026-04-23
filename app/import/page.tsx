@@ -197,7 +197,7 @@ export default function ImportPage() {
           if (p.price > 0 && p.price !== existing.price) updates.price = p.price
           if (p.stock > 0 && p.stock !== existing.stock) updates.stock = p.stock
           if (Object.keys(updates).length > 0) {
-            updateProduct(existing.id, updates)
+            await updateProduct(existing.id, updates)
             updCount++
           }
         } else {
@@ -205,7 +205,7 @@ export default function ImportPage() {
         }
       } else {
         if (p.name.trim()) {
-          addProduct({ ...p, category: cat, bestseller: false })
+          await addProduct({ ...p, category: cat, bestseller: false })
           prodCount++
         }
       }
@@ -249,12 +249,12 @@ export default function ImportPage() {
         })
 
         if (changed) {
-          updateCustomer(existing.id, { prices: merged })
+          await updateCustomer(existing.id, { prices: merged })
           warnings.push(`"${custName}" diperbarui — harga khusus disinkronkan`)
           updCount++
         }
       } else {
-        addCustomer({ name: custName, phone: '', email: '', address: '', prices })
+        await addCustomer({ name: custName, phone: '', email: '', address: '', prices })
         custCount++
       }
     })
