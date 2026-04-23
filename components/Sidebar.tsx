@@ -3,7 +3,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
   ShoppingCart, LayoutDashboard, Package,
-  Users, FileText, Clock, BarChart2, Upload,
+  Users, FileText, Clock, BarChart2, Upload, CloudUpload,
 } from 'lucide-react'
 import { clsx } from 'clsx'
 
@@ -16,6 +16,7 @@ const NAV = [
   { href: '/reports',    label: 'Laporan',   icon: BarChart2       },
   { href: '/import',     label: 'Import',    icon: Upload          },
   { href: '/attendance', label: 'Absensi',   icon: Clock           },
+  { href: '/migrate',    label: 'Migrasi',   icon: CloudUpload     },
 ]
 
 export default function Sidebar() {
