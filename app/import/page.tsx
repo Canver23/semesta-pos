@@ -179,7 +179,7 @@ export default function ImportPage() {
     e.target.value = ''
   }
 
-  function doImport() {
+  async function doImport() {
     if (!parsed) return
     const warnings: string[] = []
     let prodCount = 0, custCount = 0, updCount = 0
