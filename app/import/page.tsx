@@ -184,15 +184,14 @@ export default function ImportPage() {
     const warnings: string[] = []
     let prodCount = 0, custCount = 0, updCount = 0
 
-    // ── Import / update products ──────────────────────────
-    parsed.products.forEach(p => {
+    // ── Import / update products (for...of, bukan forEach, supaya await bisa dipakai)
+    for (const p of parsed.products) {
       const cat = categories.includes(p.category) ? p.category : 'Lainnya'
       const existing = existingProds.find(ep =>
         ep.name.toLowerCase() === p.name.toLowerCase()
       )
       if (existing) {
         if (updateMode === 'update') {
-          // Update harga umum jika berbeda
           const updates: Record<string, unknown> = {}
           if (p.price > 0 && p.price !== existing.price) updates.price = p.price
           if (p.stock > 0 && p.stock !== existing.stock) updates.stock = p.stock
@@ -209,16 +208,16 @@ export default function ImportPage() {
           prodCount++
         }
       }
-    })
+    }
 
     // ── Group customer prices by customer name ────────────
     const custMap = new Map<string, { itemName: string; price: number }[]>()
-    parsed.customerPrices.forEach(row => {
+    for (const row of parsed.customerPrices) {
       if (!custMap.has(row.custName)) custMap.set(row.custName, [])
       custMap.get(row.custName)!.push({ itemName: row.itemName, price: row.price })
-    })
+    }
 
-    custMap.forEach((items, custName) => {
+    for (const [custName, items] of custMap.entries()) {
       const prices = items.map(r => ({
         prodId: null as null,
         name: r.itemName,
@@ -229,24 +228,22 @@ export default function ImportPage() {
 
       const existing = customers.find(c => c.name.toLowerCase() === custName.toLowerCase())
       if (existing) {
-        // Merge: update prices for existing items, add new ones
         const existingMap = new Map(existing.prices.map(p => [p.name.toLowerCase(), p]))
         let changed = false
         const merged = [...existing.prices]
 
-        prices.forEach(p => {
-          const key  = p.name.toLowerCase()
-          const exP  = existingMap.get(key)
+        for (const p of prices) {
+          const key = p.name.toLowerCase()
+          const exP = existingMap.get(key)
           if (exP) {
             if (updateMode === 'update' && exP.price !== p.price) {
-              // Update existing price
               const idx = merged.findIndex(x => x.name.toLowerCase() === key)
               if (idx >= 0) { merged[idx] = { ...merged[idx], price: p.price }; changed = true }
             }
           } else {
             merged.push(p); changed = true
           }
-        })
+        }
 
         if (changed) {
           await updateCustomer(existing.id, { prices: merged })
@@ -257,7 +254,7 @@ export default function ImportPage() {
         await addCustomer({ name: custName, phone: '', email: '', address: '', prices })
         custCount++
       }
-    })
+    }
 
     setResult({ products: prodCount, customers: custCount, updated: updCount, warnings })
     setStatus('done')
