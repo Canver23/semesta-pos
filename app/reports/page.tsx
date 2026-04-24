@@ -145,9 +145,9 @@ export default function ReportsPage() {
   }
 
   return (
-    <div className="flex min-h-screen">
+    <div className="flex min-h-screen pt-14 pb-16 md:pt-0 md:pb-0">
       <Sidebar />
-      <main className="flex-1 p-6 overflow-y-auto">
+      <main className="flex-1 p-4 md:p-6 overflow-y-auto">
         <div className="flex items-center justify-between mb-5">
           <div>
             <h1 className="text-xl font-semibold">Laporan Bulanan</h1>

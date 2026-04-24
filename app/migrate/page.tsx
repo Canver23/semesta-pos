@@ -75,9 +75,9 @@ export default function MigratePage() {
   }
 
   return (
-    <div className="flex min-h-screen">
+    <div className="flex min-h-screen pt-14 pb-16 md:pt-0 md:pb-0">
       <Sidebar />
-      <main className="flex-1 p-6 overflow-y-auto">
+      <main className="flex-1 p-4 md:p-6 overflow-y-auto">
         <div className="mb-6">
           <h1 className="text-xl font-semibold">Migrasi Data ke Cloud</h1>
           <p className="text-sm text-gray-500 mt-0.5">

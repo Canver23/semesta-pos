@@ -679,9 +679,9 @@ function InvoicesContent() {
   const piutang = invoices.filter(i => i.status === 'Belum Lunas').reduce((s, i) => s + i.total, 0)
 
   return (
-    <div className="flex min-h-screen">
+    <div className="flex min-h-screen pt-14 pb-16 md:pt-0 md:pb-0">
       <Sidebar />
-      <main className="flex-1 p-6 overflow-y-auto">
+      <main className="flex-1 p-4 md:p-6 overflow-y-auto">
         <div className="flex items-center justify-between mb-5">
           <h1 className="text-xl font-semibold">Invoice</h1>
           <button onClick={() => setCreate(true)} className="btn-blue">+ Buat Invoice</button>
@@ -794,7 +794,7 @@ function InvoicesContent() {
 export default function InvoicesPage() {
   return (
     <Suspense fallback={
-      <div className="flex min-h-screen">
+      <div className="flex min-h-screen pt-14 pb-16 md:pt-0 md:pb-0">
         <Sidebar />
         <main className="flex-1 p-6 text-gray-400">Memuat...</main>
       </div>

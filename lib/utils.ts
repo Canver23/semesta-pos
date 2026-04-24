@@ -1,6 +1,10 @@
 import { format } from 'date-fns'
 import { id } from 'date-fns/locale'
 
+/** Format quantity - show decimal only if needed */
+export const fmtQty = (n: number) =>
+  Number.isInteger(n) ? String(n) : n.toString()
+
 export const fmt = (n: number) =>
   'Rp ' + Math.round(n).toLocaleString('id-ID')
 

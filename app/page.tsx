@@ -324,12 +324,12 @@ export default function PosPage() {
   }
 
   return (
-    <div className="flex min-h-screen">
+    <div className="flex min-h-screen pt-14 pb-16 md:pt-0 md:pb-0">
       <Sidebar />
 
-      <main className="flex flex-1 overflow-hidden">
+      <main className="flex flex-1 flex-col md:flex-row overflow-hidden">
         {/* ── Left: Products ─────────────────────────────── */}
-        <div className="flex flex-col flex-1 p-4 gap-3 overflow-hidden">
+        <div className="flex flex-col flex-1 p-3 md:p-4 gap-3 overflow-hidden min-h-0">
           {/* Search */}
           <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-xl px-3 py-2">
             <Search size={14} className="text-gray-400" />
@@ -384,7 +384,7 @@ export default function PosPage() {
         </div>
 
         {/* ── Right: Cart ──────────────────────────────── */}
-        <div className="w-72 flex flex-col bg-white border-l border-gray-200">
+        <div className="w-full md:w-72 flex flex-col bg-white border-t md:border-t-0 md:border-l border-gray-200 max-h-64 md:max-h-none">
           <div className="px-4 py-3 border-b border-gray-200">
             <p className="font-medium text-sm">Order Saat Ini</p>
             <p className="text-xs text-gray-400">{cart.reduce((s, i) => s + i.qty, 0)} item</p>
