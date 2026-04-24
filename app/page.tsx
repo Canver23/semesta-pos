@@ -297,13 +297,13 @@ export default function PosPage() {
     return () => document.removeEventListener('keydown', fn)
   })
 
-  async function confirmPayment() {
+async function confirmPayment() {
     const now = new Date()
     // Simpan snapshot cart SEBELUM di-clear
     const snap = cart.map(i => ({ name: i.name, qty: i.qty, unit: i.unit, price: i.price }))
     setCartSnap(snap)
 
-    const trx = await addTransaction({
+const trx = await addTransaction({
       date:   now.toLocaleDateString('id-ID'),
       time:   now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
       items:  cart.map(i => `${i.name} ×${i.qty}`).join(', '),
