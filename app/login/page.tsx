@@ -3,12 +3,12 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 
 // PIN disimpan di env variable atau default
-// Set NEXT_PUBLIC_APP_PIN di Vercel environment variables
 const CORRECT_PIN = process.env.NEXT_PUBLIC_APP_PIN || '1234'
 const SESSION_KEY = 'semesta-pos-auth'
 const SESSION_DURATION = 8 * 60 * 60 * 1000 // 8 jam
 
-export function isAuthenticated(): boolean {
+// Fungsi bantuan sekarang menjadi fungsi internal (tanpa kata 'export')
+function isAuthenticated(): boolean {
   if (typeof window === 'undefined') return false
   const raw = sessionStorage.getItem(SESSION_KEY)
   if (!raw) return false
@@ -20,17 +20,17 @@ export function isAuthenticated(): boolean {
   }
 }
 
-export function setAuthenticated() {
+function setAuthenticated() {
   sessionStorage.setItem(SESSION_KEY, JSON.stringify({
     auth: true,
     expiry: Date.now() + SESSION_DURATION,
   }))
-  // Set cookie for middleware (expires in 8 hours)
+  // Set cookie untuk middleware
   const expires = new Date(Date.now() + SESSION_DURATION).toUTCString()
   document.cookie = `semesta-auth=ok; expires=${expires}; path=/; SameSite=Strict`
 }
 
-export function clearAuth() {
+function clearAuth() {
   sessionStorage.removeItem(SESSION_KEY)
   document.cookie = 'semesta-auth=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/'
 }
@@ -56,7 +56,6 @@ export default function LoginPage() {
     setPin(next)
     setError('')
 
-    // Auto-check when PIN length matches
     if (next.length === CORRECT_PIN.length) {
       setTimeout(() => {
         if (next === CORRECT_PIN) {
@@ -82,7 +81,6 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl border border-gray-200 p-8 w-full max-w-xs shadow-sm">
-        {/* Brand */}
         <div className="text-center mb-8">
           <h1 className="text-2xl font-semibold text-brand-600">
             Semesta <span className="text-brand-400">POS</span>
@@ -90,17 +88,14 @@ export default function LoginPage() {
           <p className="text-sm text-gray-400 mt-1">Semesta Plastik</p>
         </div>
 
-        {/* PIN dots */}
         <div className={`flex justify-center gap-3 mb-3 transition-all ${shake ? 'animate-bounce' : ''}`}>
           {dots}
         </div>
 
-        {/* Error */}
         <p className={`text-center text-sm mb-5 h-5 transition-all ${
           error ? 'text-red-500' : 'text-transparent'
         }`}>{error || '.'}</p>
 
-        {/* Numpad */}
         <div className="grid grid-cols-3 gap-3">
           {keys.map((key, i) => {
             if (key === '') return <div key={i}/>
