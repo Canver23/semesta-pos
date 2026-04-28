@@ -297,13 +297,13 @@ export default function PosPage() {
     return () => document.removeEventListener('keydown', fn)
   })
 
-async function confirmPayment() {
+  async function confirmPayment() {
     const now = new Date()
     // Simpan snapshot cart SEBELUM di-clear
     const snap = cart.map(i => ({ name: i.name, qty: i.qty, unit: i.unit, price: i.price }))
     setCartSnap(snap)
 
-const trx = await addTransaction({
+    const trx = await addTransaction({
       date:   now.toLocaleDateString('id-ID'),
       time:   now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
       items:  cart.map(i => `${i.name} ×${i.qty}`).join(', '),
@@ -405,8 +405,19 @@ const trx = await addTransaction({
                   </p>
                 </div>
                 <div className="flex items-center gap-1">
+                  <button onClick={() => changeQty(item.id, -0.5)} className="w-6 h-6 rounded border border-gray-200 bg-white flex items-center justify-center hover:bg-gray-100 text-gray-500 text-xs font-bold">½-</button>
                   <button onClick={() => changeQty(item.id, -1)} className="w-6 h-6 rounded border border-gray-200 bg-white flex items-center justify-center hover:bg-gray-100"><Minus size={11}/></button>
-                  <span className="text-xs font-medium w-5 text-center">{item.qty}</span>
+                  <input
+                    type="number"
+                    step="0.001"
+                    min="0.001"
+                    value={item.qty}
+                    onChange={e => {
+                      const v = parseFloat(e.target.value)
+                      if (v > 0) changeQty(item.id, v - item.qty)
+                    }}
+                    className="text-xs font-medium w-12 text-center border border-gray-200 rounded bg-white outline-none focus:border-brand-400 px-1 py-0.5"
+                  />
                   <button onClick={() => changeQty(item.id, 1)}  className="w-6 h-6 rounded border border-gray-200 bg-white flex items-center justify-center hover:bg-gray-100"><Plus  size={11}/></button>
                 </div>
                 <button onClick={() => removeFromCart(item.id)} className="w-6 h-6 rounded border border-gray-200 flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 hover:border-red-200 transition">

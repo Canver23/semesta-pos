@@ -3,7 +3,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
   ShoppingCart, LayoutDashboard, Package,
-  Users, FileText, Clock, BarChart2, Upload, CloudUpload, Menu, X,
+  Users, FileText, Clock, BarChart2, Upload, CloudUpload, Menu, X, LogOut,
 } from 'lucide-react'
 import { clsx } from 'clsx'
 import { useState } from 'react'
@@ -58,7 +58,20 @@ export default function Sidebar() {
             )
           })}
         </nav>
-        <div className="px-5 py-3 border-t border-gray-200 text-xs text-gray-400">v1.1.0</div>
+        <div className="px-4 py-3 border-t border-gray-200 flex items-center justify-between">
+          <span className="text-xs text-gray-400">v1.1.0</span>
+          <button
+            onClick={() => {
+              document.cookie = 'semesta-auth=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/'
+              sessionStorage.removeItem('semesta-pos-auth')
+              window.location.href = '/login'
+            }}
+            className="flex items-center gap-1 text-xs text-gray-400 hover:text-red-500 transition"
+            title="Keluar"
+          >
+            <LogOut size={13}/> Keluar
+          </button>
+        </div>
       </aside>
 
       {/* ── Mobile Top Bar ──────────────────────────────── */}

@@ -60,6 +60,7 @@ interface StoreState {
   cart: CartItem[]
   addToCart: (item: Omit<CartItem, 'qty'>) => void
   changeQty: (id: number, delta: number) => void
+  setQty: (id: number, qty: number) => void
   removeFromCart: (id: number) => void
   clearCart: () => void
 
@@ -226,7 +227,12 @@ export const useStore = create<StoreState>()((set, get) => ({
   }),
 
   changeQty: (id, delta) => set(s => ({
-    cart: s.cart.map(x => x.id === id ? { ...x, qty: x.qty + delta } : x).filter(x => x.qty > 0)
+    cart: s.cart.map(x => x.id === id ? { ...x, qty: Math.max(0.001, Math.round((x.qty + delta) * 1000) / 1000) } : x).filter(x => x.qty > 0)
+  })),
+  setQty: (id, qty) => set(s => ({
+    cart: qty <= 0
+      ? s.cart.filter(x => x.id !== id)
+      : s.cart.map(x => x.id === id ? { ...x, qty: Math.round(qty * 1000) / 1000 } : x)
   })),
 
   removeFromCart: (id) => set(s => ({ cart: s.cart.filter(x => x.id !== id) })),

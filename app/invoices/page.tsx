@@ -506,8 +506,20 @@ function CreateInvoiceModal({ open, onClose, defaultCustId }:
                       onChange={e => updateItem(i, 'size', e.target.value)} placeholder="-" />
                   </td>
                   <td className="px-1 py-1.5 w-16">
-                    <input className="input text-xs py-1 text-center" type="number" value={item.qty}
-                      onChange={e => updateItem(i, 'qty', parseFloat(e.target.value) || 1)} />
+                    <input
+                      className="input text-xs py-1 text-center"
+                      type="number" step="0.001" min="0.001"
+                      value={item.qty || ''}
+                      onChange={e => {
+                        const v = parseFloat(e.target.value)
+                        if (!isNaN(v) && v > 0) updateItem(i, 'qty', v)
+                        else if (e.target.value === '') updateItem(i, 'qty', 0)
+                      }}
+                      onBlur={e => {
+                        if (!e.target.value || parseFloat(e.target.value) <= 0)
+                          updateItem(i, 'qty', 1)
+                      }}
+                    />
                   </td>
                   <td className="px-1 py-1.5 w-20">
                     <select className="input text-xs py-1" value={item.unit}
