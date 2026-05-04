@@ -10,24 +10,6 @@ import type { Transaction } from '@/lib/types'
 import { clsx } from 'clsx'
 
 // ─────────────────────────────────────────────────────────────
-// BUILD STRUK HTML — layout invoice (21×14cm, sama dengan invoice pelanggan)
-// Untuk transaksi kasir langsung (tanpa data pelanggan)
-// ─────────────────────────────────────────────────────────────
-
-// ─── Print struk via popup (sama metode dengan invoice) ───────
-  cartSnapshot: { name: string; size?: string; qty: number; unit: string; price: number }[]
-) {
-  const w = window.open('', '_blank', 'width=900,height=650')
-  if (!w) {
-    alert('Pop-up diblokir browser.\nIzinkan pop-up: klik ikon kunci/info di address bar → izinkan pop-up untuk localhost.')
-    return
-  }
-  w.document.open()
-  w.document.write(buildStrukHTML(trx, cartSnapshot))
-  w.document.close()
-}
-
-// ─────────────────────────────────────────────────────────────
 // MAIN POS PAGE
 // ─────────────────────────────────────────────────────────────
 export default function PosPage() {
