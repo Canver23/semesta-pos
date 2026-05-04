@@ -499,7 +499,7 @@ function InvoicesContent() {
                     <button onClick={() => setViewing(inv)} className="btn btn-outline btn-sm">
                       <Eye size={12} /> Lihat
                     </button>
-                    <button onClick={() => printInvoicePopup(inv)} className="btn btn-outline btn-sm text-brand-600">
+                    <button onClick={() => setPrintTarget(inv)} className="btn btn-outline btn-sm text-brand-600">
                       <Printer size={12} /> Print
                     </button>
                     <button
