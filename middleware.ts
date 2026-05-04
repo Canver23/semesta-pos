@@ -1,21 +1,26 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
-// Pages that don't need auth
-const PUBLIC_PATHS = ['/login']
+const ADMIN_ONLY = ['/dashboard', '/inventory', '/reports', '/import', '/migrate']
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
-  // Skip auth for public paths and API routes
-  if (PUBLIC_PATHS.some(p => pathname.startsWith(p))) return NextResponse.next()
-  if (pathname.startsWith('/api')) return NextResponse.next()
-  if (pathname.startsWith('/_next')) return NextResponse.next()
+  if (pathname.startsWith('/login'))   return NextResponse.next()
+  if (pathname.startsWith('/api'))     return NextResponse.next()
+  if (pathname.startsWith('/_next'))   return NextResponse.next()
+  if (pathname === '/favicon.ico')     return NextResponse.next()
 
-  // Check auth via cookie (set by client after PIN)
-  const auth = request.cookies.get('semesta-auth')
-  if (!auth || auth.value !== 'ok') {
+  const role = request.cookies.get('semesta-auth')?.value
+
+  // Not logged in
+  if (!role || !['kasir','admin'].includes(role)) {
     return NextResponse.redirect(new URL('/login', request.url))
+  }
+
+  // Kasir blocked from admin pages
+  if (role === 'kasir' && ADMIN_ONLY.some(p => pathname.startsWith(p))) {
+    return NextResponse.redirect(new URL('/', request.url))
   }
 
   return NextResponse.next()
