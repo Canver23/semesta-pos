@@ -23,7 +23,7 @@ export default function PosPage() {
   const [lastTrx, setLastTrx]       = useState<Transaction | null>(null)
   // Snapshot cart at payment time (karena cart dibersihkan setelah transaksi)
   const [cartSnap, setCartSnap]     = useState<{ name: string; size?: string; qty: number; unit: string; price: number }[]>([])
-
+  const [showPrintSelect, setPrintSelect] = useState(false)
   const categories = ['Semua', ...Array.from(new Set(products.map(p => p.category)))]
 
   const filtered = products.filter(p => {
