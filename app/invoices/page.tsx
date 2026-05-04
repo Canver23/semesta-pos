@@ -539,7 +539,7 @@ function InvoicesContent() {
             <p className="text-xs text-gray-500">
               Preview ini mendekati layout cetakan. Klik Print untuk hasil yang tepat di kertas Invoice 21×14cm.
             </p>
-            <button onClick={() => printInvoicePopup(viewing)} className="btn-blue">
+            <button onClick={() => setPrintTarget(viewing)} className="btn-blue">
               <Printer size={14} /> Cetak Invoice
             </button>
           </div>
