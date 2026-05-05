@@ -48,7 +48,6 @@ export const CATEGORIES = ['Sterofoam', 'Wrapping', 'Kantong', 'Lainnya']
 
 export const STORE_INFO = {
   name:    'Semesta Plastik',
-  address: 'Jl. Contoh No. 1, Bandung',
   bank:    'BCA',
   bankAcc: '3461191698',
   bankAN:  'Lie Tin Liung',
