@@ -196,7 +196,6 @@ export function buildThermalStrukHTML(
     .footer-text { text-align: center; font-size: 7pt; color: #666; margin-top: 3mm; }
   </style></head><body>
   <div class="store-name">${STORE_INFO.name}</div>
-  <div class="meta">${STORE_INFO.address}</div>
   <div class="divider"></div>
   <div class="meta">${trx.date} ${trx.time} · ${trx.id}</div>
   <div class="divider"></div>
