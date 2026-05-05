@@ -300,7 +300,6 @@ export default function PosPage() {
             {/* Mini preview */}
             <div className="bg-gray-50 rounded-lg p-4 font-mono text-xs">
               <p className="font-bold text-center text-sm mb-0.5">{STORE_INFO.name}</p>
-              <p className="text-center text-gray-500 mb-0.5">{STORE_INFO.address}</p>
               <p className="text-center text-gray-400 mb-2">{lastTrx.date} {lastTrx.time} · {lastTrx.id}</p>
               <hr className="border-dashed border-gray-300 mb-2"/>
               {cartSnap.map((item, i) => (
