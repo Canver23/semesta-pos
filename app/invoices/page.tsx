@@ -6,22 +6,25 @@ import Modal from '@/components/ui/Modal'
 import { useStore } from '@/lib/store'
 import { fmt, fmtDate, todayISO, UNITS, STORE_INFO } from '@/lib/utils'
 import type { Invoice, InvoiceItem } from '@/lib/types'
-import { Printer, Plus, X, Trash2, Eye, Smartphone, Monitor } from 'lucide-react'
+import { Printer, Plus, X, Trash2, Eye, Smartphone, Monitor, Pencil } from 'lucide-react'
 import { buildInvoiceHTML, buildThermalHTML, openPrintPopup } from '@/lib/print'
 
 // ─────────────────────────────────────────────────────────────
-// BUILD INVOICE HTML — layout persis seperti Excel VBA kamu
-// Kertas: 21cm × 14cm (custom "Invoice"), landscape
+// SHARED INVOICE FORM (dipakai oleh Create & Edit)
 // ─────────────────────────────────────────────────────────────
+interface InvoiceFormProps {
+  open: boolean
+  onClose: () => void
+  defaultCustId?: string
+  editInvoice?: Invoice | null   // kalau ada = mode edit
+}
 
-// ─────────────────────────────────────────────────────────────
-// CREATE INVOICE MODAL
-// ─────────────────────────────────────────────────────────────
-function CreateInvoiceModal({ open, onClose, defaultCustId }:
-  { open: boolean; onClose: () => void; defaultCustId?: string }) {
-  const { customers, products, addInvoice } = useStore()
+function InvoiceFormModal({ open, onClose, defaultCustId, editInvoice }: InvoiceFormProps) {
+  const { customers, products, addInvoice, invoices, updateInvoice } = useStore()
+  const isEdit = !!editInvoice
+
   const [isUmum, setIsUmum]     = useState(false)
-  const [custId, setCustId]     = useState(defaultCustId ?? '')
+  const [custId, setCustId]     = useState('')
   const [namaUmum, setNamaUmum] = useState('')
   const [date, setDate]         = useState(todayISO())
   const [due, setDue]           = useState(() => {
@@ -30,13 +33,32 @@ function CreateInvoiceModal({ open, onClose, defaultCustId }:
   const [note, setNote]   = useState('')
   const [items, setItems] = useState<InvoiceItem[]>([])
 
+  // Pre-fill form when editing
   useEffect(() => {
-    if (defaultCustId) { setCustId(defaultCustId); setIsUmum(false) }
-  }, [defaultCustId])
+    if (editInvoice) {
+      const isU = editInvoice.custId === 'UMUM'
+      setIsUmum(isU)
+      setCustId(isU ? '' : editInvoice.custId)
+      setNamaUmum(isU ? editInvoice.custName : '')
+      setDate(editInvoice.date)
+      setDue(editInvoice.due)
+      setNote(editInvoice.note)
+      setItems(editInvoice.items.map(i => ({ ...i })))
+    } else {
+      // Reset for create
+      setIsUmum(false)
+      setCustId(defaultCustId ?? '')
+      setNamaUmum('')
+      setDate(todayISO())
+      const d = new Date(); d.setDate(d.getDate() + 14)
+      setDue(d.toISOString().slice(0, 10))
+      setNote('')
+      setItems([])
+    }
+  }, [editInvoice, defaultCustId, open])
 
   const cust     = customers.find(c => c.id === custId)
   const subtotal = items.reduce((s, i) => s + i.total, 0)
-  // custName: pelanggan terdaftar pakai nama dari DB, umum pakai input atau default
   const custName = isUmum
     ? (namaUmum.trim() || 'Pembeli Umum')
     : (cust?.name ?? '')
@@ -65,23 +87,36 @@ function CreateInvoiceModal({ open, onClose, defaultCustId }:
   }
 
   async function save() {
-    // Validasi: umum = nama boleh kosong (default "Pembeli Umum"), pelanggan harus pilih
     if (!isUmum && !custId) return
     if (!items.length) return
-    await addInvoice({
-      custId: isUmum ? 'UMUM' : custId,
-      custName,
-      date, due, items, total: subtotal,
-      status: 'Belum Lunas', note,
-    })
+
+    if (isEdit && editInvoice) {
+      // Update existing invoice
+      await updateInvoice(editInvoice.id, {
+        custId:   isUmum ? 'UMUM' : custId,
+        custName,
+        date, due,
+        items,
+        total: subtotal,
+        note,
+      })
+    } else {
+      await addInvoice({
+        custId: isUmum ? 'UMUM' : custId,
+        custName,
+        date, due, items,
+        total: subtotal,
+        status: 'Belum Lunas',
+        note,
+      })
+    }
     onClose()
-    setItems([]); setCustId(''); setNamaUmum(''); setNote('')
   }
 
   const canSave = items.length > 0 && (isUmum || !!custId)
 
   return (
-    <Modal open={open} onClose={onClose} title="Buat Invoice" size="xl">
+    <Modal open={open} onClose={onClose} title={isEdit ? `Edit Invoice — ${editInvoice?.id}` : 'Buat Invoice'} size="xl">
       <div className="flex flex-col gap-4">
 
         {/* Toggle Pelanggan / Umum */}
@@ -92,9 +127,7 @@ function CreateInvoiceModal({ open, onClose, defaultCustId }:
           ].map(({ label, val }) => (
             <button key={label} onClick={() => setIsUmum(val)}
               className={`flex-1 py-2 rounded-md text-sm font-medium transition ${
-                isUmum === val
-                  ? 'bg-white shadow text-gray-900'
-                  : 'text-gray-500 hover:text-gray-700'
+                isUmum === val ? 'bg-white shadow text-gray-900' : 'text-gray-500 hover:text-gray-700'
               }`}>
               {label}
             </button>
@@ -107,12 +140,8 @@ function CreateInvoiceModal({ open, onClose, defaultCustId }:
               {isUmum ? 'Nama Pembeli (opsional)' : 'Pelanggan *'}
             </label>
             {isUmum ? (
-              <input
-                className="input"
-                value={namaUmum}
-                onChange={e => setNamaUmum(e.target.value)}
-                placeholder="Pembeli Umum"
-              />
+              <input className="input" value={namaUmum}
+                onChange={e => setNamaUmum(e.target.value)} placeholder="Pembeli Umum" />
             ) : (
               <select className="input" value={custId} onChange={e => setCustId(e.target.value)}>
                 <option value="">-- Pilih Pelanggan --</option>
@@ -130,20 +159,23 @@ function CreateInvoiceModal({ open, onClose, defaultCustId }:
           </div>
         </div>
 
-        {/* Hint harga khusus */}
         {!isUmum && cust && cust.prices.length > 0 && (
           <div className="bg-brand-50 rounded-lg px-3 py-2 text-xs text-brand-800">
             ★ {cust.name} punya {cust.prices.length} produk harga khusus — ada di dropdown bawah.
           </div>
         )}
 
+        {isEdit && (
+          <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-xs text-amber-800">
+            ✏️ Mode Edit — perubahan akan langsung menimpa data invoice {editInvoice?.id}. Status Lunas/Belum Lunas tidak berubah.
+          </div>
+        )}
+
         {/* Quick add */}
         <div className="flex gap-2">
-          <select
-            className="input flex-1 text-sm"
+          <select className="input flex-1 text-sm"
             onChange={e => { addFromCatalog(e.target.value); e.currentTarget.value = '' }}
-            defaultValue=""
-          >
+            defaultValue="">
             <option value="">+ Tambah item dari katalog...</option>
             {!isUmum && cust && cust.prices.length > 0 && (
               <optgroup label={`★ Harga Khusus ${cust.name}`}>
@@ -164,8 +196,7 @@ function CreateInvoiceModal({ open, onClose, defaultCustId }:
           </select>
           <button
             onClick={() => setItems(prev => [...prev, { name: '', size: '', qty: 1, unit: 'Pcs', price: 0, total: 0 }])}
-            className="btn-outline whitespace-nowrap"
-          >
+            className="btn-outline whitespace-nowrap">
             <Plus size={13} /> Baris Kosong
           </button>
         </div>
@@ -197,8 +228,7 @@ function CreateInvoiceModal({ open, onClose, defaultCustId }:
                       onChange={e => updateItem(i, 'size', e.target.value)} placeholder="-" />
                   </td>
                   <td className="px-1 py-1.5 w-16">
-                    <input
-                      className="input text-xs py-1 text-center"
+                    <input className="input text-xs py-1 text-center"
                       type="number" step="0.001" min="0.001"
                       value={item.qty || ''}
                       onChange={e => {
@@ -209,8 +239,7 @@ function CreateInvoiceModal({ open, onClose, defaultCustId }:
                       onBlur={e => {
                         if (!e.target.value || parseFloat(e.target.value) <= 0)
                           updateItem(i, 'qty', 1)
-                      }}
-                    />
+                      }} />
                   </td>
                   <td className="px-1 py-1.5 w-20">
                     <select className="input text-xs py-1" value={item.unit}
@@ -257,8 +286,8 @@ function CreateInvoiceModal({ open, onClose, defaultCustId }:
 
         <div className="flex gap-2 pt-1">
           <button onClick={onClose} className="btn-outline flex-1">Batal</button>
-          <button onClick={save} disabled={!canSave} className="btn-blue flex-[2]">
-            Simpan Invoice
+          <button onClick={save} disabled={!canSave} className={`flex-[2] ${isEdit ? 'btn btn-outline border-amber-400 text-amber-700 hover:bg-amber-50' : 'btn-blue'}`}>
+            {isEdit ? '✏️ Simpan Perubahan' : 'Simpan Invoice'}
           </button>
         </div>
       </div>
@@ -267,7 +296,7 @@ function CreateInvoiceModal({ open, onClose, defaultCustId }:
 }
 
 // ─────────────────────────────────────────────────────────────
-// INVOICE PREVIEW DALAM MODAL (tampilan desktop)
+// INVOICE PREVIEW
 // ─────────────────────────────────────────────────────────────
 function InvoicePreview({ inv }: { inv: Invoice }) {
   const TOTAL_ROWS = 14
@@ -275,13 +304,10 @@ function InvoicePreview({ inv }: { inv: Invoice }) {
 
   return (
     <div style={{ fontFamily: "'Courier New', monospace", fontSize: '11pt', background: 'white', padding: '4mm', border: '1px solid #ccc' }}>
-      {/* Title */}
       <div style={{ textAlign: 'center', fontSize: '14pt', fontWeight: 'bold', letterSpacing: '4px', marginBottom: '3mm' }}>
         I N V O I C E
       </div>
       <hr style={{ borderTop: '2px solid #000', marginBottom: '2mm' }} />
-
-      {/* Header */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', marginBottom: '2mm', fontSize: '10pt' }}>
         <div>No Invoice: <strong>{inv.id}</strong></div>
         <div style={{ textAlign: 'right' }}>
@@ -289,8 +315,6 @@ function InvoicePreview({ inv }: { inv: Invoice }) {
           <br />Tanggal <strong>{fmtDate(inv.date)}</strong>
         </div>
       </div>
-
-      {/* Table */}
       <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '10pt', marginBottom: '1mm' }}>
         <colgroup>
           <col style={{ width: '35%' }} /><col style={{ width: '13%' }} />
@@ -323,8 +347,6 @@ function InvoicePreview({ inv }: { inv: Invoice }) {
         </tbody>
       </table>
       <hr style={{ borderTop: '1px solid #000', marginBottom: '1mm' }} />
-
-      {/* Footer */}
       <div style={{ display: 'grid', gridTemplateColumns: '42% 58%', gap: '3mm', fontSize: '9.5pt' }}>
         <div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', border: '1px solid #000' }}>
@@ -360,10 +382,8 @@ function InvoicePreview({ inv }: { inv: Invoice }) {
 }
 
 // ─────────────────────────────────────────────────────────────
-// MAIN PAGE
+// PRINT SELECTOR
 // ─────────────────────────────────────────────────────────────
-
-// ─── Print mode selector ──────────────────────────────────────
 function PrintSelector({ inv, onClose }: { inv: Invoice; onClose: () => void }) {
   return (
     <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/40 p-4">
@@ -371,10 +391,8 @@ function PrintSelector({ inv, onClose }: { inv: Invoice; onClose: () => void }) 
         <p className="font-medium text-base mb-1">Pilih Metode Cetak</p>
         <p className="text-xs text-gray-500 mb-5">Pilih sesuai printer yang digunakan</p>
         <div className="flex flex-col gap-3">
-          <button
-            onClick={() => { openPrintPopup(buildInvoiceHTML(inv)); onClose() }}
-            className="flex items-center gap-4 p-4 rounded-xl border border-gray-200 hover:border-brand-300 hover:bg-brand-50 transition text-left"
-          >
+          <button onClick={() => { openPrintPopup(buildInvoiceHTML(inv)); onClose() }}
+            className="flex items-center gap-4 p-4 rounded-xl border border-gray-200 hover:border-brand-300 hover:bg-brand-50 transition text-left">
             <div className="w-10 h-10 rounded-lg bg-brand-50 flex items-center justify-center shrink-0">
               <Monitor size={20} className="text-brand-600"/>
             </div>
@@ -383,10 +401,8 @@ function PrintSelector({ inv, onClose }: { inv: Invoice; onClose: () => void }) 
               <p className="text-xs text-gray-500">Printer desktop / dot matrix</p>
             </div>
           </button>
-          <button
-            onClick={() => { openPrintPopup(buildThermalHTML(inv, '58mm')); onClose() }}
-            className="flex items-center gap-4 p-4 rounded-xl border border-gray-200 hover:border-brand-300 hover:bg-brand-50 transition text-left"
-          >
+          <button onClick={() => { openPrintPopup(buildThermalHTML(inv, '58mm')); onClose() }}
+            className="flex items-center gap-4 p-4 rounded-xl border border-gray-200 hover:border-brand-300 hover:bg-brand-50 transition text-left">
             <div className="w-10 h-10 rounded-lg bg-green-50 flex items-center justify-center shrink-0">
               <Smartphone size={20} className="text-green-600"/>
             </div>
@@ -395,10 +411,8 @@ function PrintSelector({ inv, onClose }: { inv: Invoice; onClose: () => void }) 
               <p className="text-xs text-gray-500">Bluetooth printer di HP</p>
             </div>
           </button>
-          <button
-            onClick={() => { openPrintPopup(buildThermalHTML(inv, '80mm')); onClose() }}
-            className="flex items-center gap-4 p-4 rounded-xl border border-gray-200 hover:border-brand-300 hover:bg-brand-50 transition text-left"
-          >
+          <button onClick={() => { openPrintPopup(buildThermalHTML(inv, '80mm')); onClose() }}
+            className="flex items-center gap-4 p-4 rounded-xl border border-gray-200 hover:border-brand-300 hover:bg-brand-50 transition text-left">
             <div className="w-10 h-10 rounded-lg bg-amber-50 flex items-center justify-center shrink-0">
               <Smartphone size={20} className="text-amber-600"/>
             </div>
@@ -414,16 +428,20 @@ function PrintSelector({ inv, onClose }: { inv: Invoice; onClose: () => void }) 
   )
 }
 
+// ─────────────────────────────────────────────────────────────
+// MAIN PAGE
+// ─────────────────────────────────────────────────────────────
 function InvoicesContent() {
   const { invoices, updateInvoiceStatus, deleteInvoice } = useStore()
   const searchParams  = useSearchParams()
   const defaultCustId = searchParams.get('custId') ?? undefined
 
-  const [search, setSearch]         = useState('')
-  const [statusFilter, setStatus]   = useState('')
-  const [showCreate, setCreate]     = useState(!!defaultCustId)
-  const [viewing, setViewing]       = useState<Invoice | null>(null)
+  const [search, setSearch]           = useState('')
+  const [statusFilter, setStatus]     = useState('')
+  const [showCreate, setCreate]       = useState(!!defaultCustId)
+  const [viewing, setViewing]         = useState<Invoice | null>(null)
   const [printTarget, setPrintTarget] = useState<Invoice | null>(null)
+  const [editTarget, setEditTarget]   = useState<Invoice | null>(null)
 
   const filtered = invoices.filter(inv =>
     (!search || inv.id.toLowerCase().includes(search.toLowerCase()) ||
@@ -446,9 +464,9 @@ function InvoicesContent() {
         {/* Summary */}
         <div className="grid grid-cols-3 gap-4 mb-5">
           {[
-            { label: 'Total Invoice',      value: invoices.length + ' invoice', cls: 'text-gray-900'  },
-            { label: 'Sudah Lunas',        value: fmt(lunas),                   cls: 'text-green-700' },
-            { label: 'Piutang Belum Lunas',value: fmt(piutang),                 cls: 'text-red-600'   },
+            { label: 'Total Invoice',       value: invoices.length + ' invoice', cls: 'text-gray-900'  },
+            { label: 'Sudah Lunas',         value: fmt(lunas),                   cls: 'text-green-700' },
+            { label: 'Piutang Belum Lunas', value: fmt(piutang),                 cls: 'text-red-600'   },
           ].map(({ label, value, cls }) => (
             <div key={label} className="card py-3">
               <p className="text-xs text-gray-500 mb-1">{label}</p>
@@ -499,19 +517,20 @@ function InvoicesContent() {
                     <button onClick={() => setViewing(inv)} className="btn btn-outline btn-sm">
                       <Eye size={12} /> Lihat
                     </button>
-                    <button onClick={() => printInvoicePopup(inv)} className="btn btn-outline btn-sm text-brand-600">
+                    <button onClick={() => setEditTarget(inv)} className="btn btn-outline btn-sm text-amber-600">
+                      <Pencil size={12} /> Edit
+                    </button>
+                    <button onClick={() => setPrintTarget(inv)} className="btn btn-outline btn-sm text-brand-600">
                       <Printer size={12} /> Print
                     </button>
                     <button
                       onClick={() => updateInvoiceStatus(inv.id, inv.status === 'Lunas' ? 'Belum Lunas' : 'Lunas').catch(console.error)}
-                      className="btn btn-outline btn-sm text-xs"
-                    >
+                      className="btn btn-outline btn-sm text-xs">
                       {inv.status === 'Lunas' ? 'Batal' : '✓ Lunas'}
                     </button>
                     <button
                       onClick={() => { if (confirm(`Hapus ${inv.id}?`)) deleteInvoice(inv.id).catch(console.error) }}
-                      className="btn btn-danger btn-sm"
-                    >
+                      className="btn btn-danger btn-sm">
                       <Trash2 size={12} />
                     </button>
                   </div>
@@ -523,11 +542,20 @@ function InvoicesContent() {
       </main>
 
       {/* Create modal */}
-      <CreateInvoiceModal
+      <InvoiceFormModal
         open={showCreate}
         onClose={() => setCreate(false)}
         defaultCustId={defaultCustId}
       />
+
+      {/* Edit modal */}
+      <InvoiceFormModal
+        open={!!editTarget}
+        onClose={() => setEditTarget(null)}
+        editInvoice={editTarget}
+      />
+
+      {/* Print selector */}
       {printTarget && (
         <PrintSelector inv={printTarget} onClose={() => setPrintTarget(null)}/>
       )}
@@ -537,11 +565,16 @@ function InvoicesContent() {
         <Modal open={!!viewing} onClose={() => setViewing(null)} title={`Preview — ${viewing.id}`} size="xl">
           <div className="flex justify-between items-center mb-4">
             <p className="text-xs text-gray-500">
-              Preview ini mendekati layout cetakan. Klik Print untuk hasil yang tepat di kertas Invoice 21×14cm.
+              Preview ini mendekati layout cetakan.
             </p>
-            <button onClick={() => printInvoicePopup(viewing)} className="btn-blue">
-              <Printer size={14} /> Cetak Invoice
-            </button>
+            <div className="flex gap-2">
+              <button onClick={() => { setEditTarget(viewing); setViewing(null) }} className="btn-outline">
+                <Pencil size={14}/> Edit
+              </button>
+              <button onClick={() => setPrintTarget(viewing)} className="btn-blue">
+                <Printer size={14} /> Cetak Invoice
+              </button>
+            </div>
           </div>
           <InvoicePreview inv={viewing} />
         </Modal>

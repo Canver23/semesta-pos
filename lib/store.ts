@@ -21,42 +21,36 @@ async function api<T>(url: string, options?: RequestInit): Promise<T> {
 
 // ─── Store State ──────────────────────────────────────────────
 interface StoreState {
-  // Loading state
   loading: boolean
   initialized: boolean
   loadAll: () => Promise<void>
 
-  // Products
   products: Product[]
   addProduct: (p: Omit<Product, 'id'>) => Promise<void>
   updateProduct: (id: number, p: Partial<Product>) => Promise<void>
   deleteProduct: (id: number) => Promise<void>
 
-  // Categories
   customCategories: string[]
   addCategory: (name: string) => Promise<void>
   deleteCategory: (name: string) => Promise<void>
   allCategories: () => string[]
 
-  // Customers
   customers: Customer[]
   addCustomer: (c: Omit<Customer, 'id'>) => Promise<void>
   updateCustomer: (id: string, c: Partial<Customer>) => Promise<void>
   deleteCustomer: (id: string) => Promise<void>
 
-  // Invoices
   invoices: Invoice[]
   addInvoice: (inv: Omit<Invoice, 'id'>) => Promise<Invoice>
+  updateInvoice: (id: string, data: Partial<Omit<Invoice, 'id' | 'status'>>) => Promise<void>
   updateInvoiceStatus: (id: string, status: Invoice['status']) => Promise<void>
   deleteInvoice: (id: string) => Promise<void>
 
-  // Transactions
   transactions: Transaction[]
   addTransaction: (t: Omit<Transaction, 'id'>) => Promise<Transaction>
   deleteTransaction: (id: string) => Promise<void>
   resetTransactions: () => Promise<void>
 
-  // Cart (local only — no cloud needed)
   cart: CartItem[]
   addToCart: (item: Omit<CartItem, 'qty'>) => void
   changeQty: (id: number, delta: number) => void
@@ -64,7 +58,6 @@ interface StoreState {
   removeFromCart: (id: number) => void
   clearCart: () => void
 
-  // Attendance
   attendanceLogs: AttendanceLog[]
   addAttendance: (type: AttendanceLog['type']) => Promise<void>
 }
@@ -75,7 +68,6 @@ export const useStore = create<StoreState>()((set, get) => ({
   loading: false,
   initialized: false,
 
-  // ── Load all data from Supabase on app start ───────────────
   loadAll: async () => {
     if (get().initialized) return
     set({ loading: true })
@@ -107,21 +99,14 @@ export const useStore = create<StoreState>()((set, get) => ({
 
   // ── Products ───────────────────────────────────────────────
   products: [],
-
   addProduct: async (p) => {
-    const data = await api<Product>('/api/products', {
-      method: 'POST', body: JSON.stringify(p),
-    })
+    const data = await api<Product>('/api/products', { method: 'POST', body: JSON.stringify(p) })
     set(s => ({ products: [...s.products, data] }))
   },
-
   updateProduct: async (id, p) => {
-    const data = await api<Product>(`/api/products/${id}`, {
-      method: 'PUT', body: JSON.stringify(p),
-    })
+    const data = await api<Product>(`/api/products/${id}`, { method: 'PUT', body: JSON.stringify(p) })
     set(s => ({ products: s.products.map(x => x.id === id ? { ...x, ...data } : x) }))
   },
-
   deleteProduct: async (id) => {
     await api(`/api/products/${id}`, { method: 'DELETE' })
     set(s => ({ products: s.products.filter(x => x.id !== id) }))
@@ -129,7 +114,6 @@ export const useStore = create<StoreState>()((set, get) => ({
 
   // ── Categories ────────────────────────────────────────────
   customCategories: [],
-
   addCategory: async (name) => {
     if (!name.trim()) return
     const all = get().allCategories()
@@ -137,12 +121,10 @@ export const useStore = create<StoreState>()((set, get) => ({
     await api('/api/categories', { method: 'POST', body: JSON.stringify({ name: name.trim() }) })
     set(s => ({ customCategories: [...s.customCategories, name.trim()] }))
   },
-
   deleteCategory: async (name) => {
     await api(`/api/categories/${encodeURIComponent(name)}`, { method: 'DELETE' })
     set(s => ({ customCategories: s.customCategories.filter(c => c !== name) }))
   },
-
   allCategories: () => {
     const s = get()
     return Array.from(new Set([...DEFAULT_CATEGORIES, ...s.customCategories]))
@@ -150,22 +132,15 @@ export const useStore = create<StoreState>()((set, get) => ({
 
   // ── Customers ─────────────────────────────────────────────
   customers: [],
-
   addCustomer: async (c) => {
     const newId = 'C' + String(get().customers.length + 1).padStart(3, '0')
-    const data  = await api<Customer>('/api/customers', {
-      method: 'POST', body: JSON.stringify({ ...c, id: newId }),
-    })
+    const data  = await api<Customer>('/api/customers', { method: 'POST', body: JSON.stringify({ ...c, id: newId }) })
     set(s => ({ customers: [...s.customers, data] }))
   },
-
   updateCustomer: async (id, c) => {
-    const data = await api<Customer>(`/api/customers/${id}`, {
-      method: 'PUT', body: JSON.stringify(c),
-    })
+    const data = await api<Customer>(`/api/customers/${id}`, { method: 'PUT', body: JSON.stringify(c) })
     set(s => ({ customers: s.customers.map(x => x.id === id ? { ...x, ...data } : x) }))
   },
-
   deleteCustomer: async (id) => {
     await api(`/api/customers/${id}`, { method: 'DELETE' })
     set(s => ({ customers: s.customers.filter(x => x.id !== id) }))
@@ -183,6 +158,28 @@ export const useStore = create<StoreState>()((set, get) => ({
     return newInv as Invoice
   },
 
+  // ── UPDATE INVOICE (edit items, pelanggan, tanggal, dll) ──
+  updateInvoice: async (id, data) => {
+    // Build update payload — map camelCase to snake_case for API
+    const payload: Record<string, unknown> = {}
+    if (data.custId   !== undefined) payload.cust_id   = data.custId
+    if (data.custName !== undefined) payload.cust_name = data.custName
+    if (data.date     !== undefined) payload.date      = data.date
+    if (data.due      !== undefined) payload.due       = data.due
+    if (data.items    !== undefined) payload.items     = data.items
+    if (data.total    !== undefined) payload.total     = data.total
+    if (data.note     !== undefined) payload.note      = data.note
+
+    await api(`/api/invoices/${id}`, { method: 'PATCH', body: JSON.stringify(payload) })
+
+    // Update local state
+    set(s => ({
+      invoices: s.invoices.map(x =>
+        x.id === id ? { ...x, ...data } : x
+      ),
+    }))
+  },
+
   updateInvoiceStatus: async (id, status) => {
     await api(`/api/invoices/${id}`, { method: 'PUT', body: JSON.stringify({ status }) })
     set(s => ({ invoices: s.invoices.map(x => x.id === id ? { ...x, status } : x) }))
@@ -195,23 +192,20 @@ export const useStore = create<StoreState>()((set, get) => ({
 
   // ── Transactions ──────────────────────────────────────────
   transactions: [],
-
   addTransaction: async (t) => {
-    const now         = new Date()
-    const todayStr    = now.toLocaleDateString('id-ID')
+    const now          = new Date()
+    const todayStr     = now.toLocaleDateString('id-ID')
     const sameDayCount = get().transactions.filter(x => x.date === todayStr).length
-    const id          = generateTrxId(sameDayCount, now)
-    const newT        = { ...t, id }
+    const id           = generateTrxId(sameDayCount, now)
+    const newT         = { ...t, id }
     await api('/api/transactions', { method: 'POST', body: JSON.stringify(newT) })
     set(s => ({ transactions: [newT as Transaction, ...s.transactions] }))
     return newT as Transaction
   },
-
   deleteTransaction: async (id) => {
     await api(`/api/transactions/${id}`, { method: 'DELETE' })
     set(s => ({ transactions: s.transactions.filter(x => x.id !== id) }))
   },
-
   resetTransactions: async () => {
     await api('/api/transactions', { method: 'DELETE' })
     set({ transactions: [] })
@@ -219,40 +213,36 @@ export const useStore = create<StoreState>()((set, get) => ({
 
   // ── Cart (local only) ─────────────────────────────────────
   cart: [],
-
   addToCart: (item) => set(s => {
     const existing = s.cart.find(x => x.id === item.id)
     if (existing) return { cart: s.cart.map(x => x.id === item.id ? { ...x, qty: x.qty + 1 } : x) }
     return { cart: [...s.cart, { ...item, qty: 1 }] }
   }),
-
   changeQty: (id, delta) => set(s => ({
-    cart: s.cart.map(x => x.id === id ? { ...x, qty: Math.max(0.001, Math.round((x.qty + delta) * 1000) / 1000) } : x).filter(x => x.qty > 0)
+    cart: s.cart.map(x => x.id === id
+      ? { ...x, qty: Math.max(0.001, Math.round((x.qty + delta) * 1000) / 1000) }
+      : x
+    ).filter(x => x.qty > 0)
   })),
   setQty: (id, qty) => set(s => ({
     cart: qty <= 0
       ? s.cart.filter(x => x.id !== id)
       : s.cart.map(x => x.id === id ? { ...x, qty: Math.round(qty * 1000) / 1000 } : x)
   })),
-
   removeFromCart: (id) => set(s => ({ cart: s.cart.filter(x => x.id !== id) })),
-
   clearCart: () => set({ cart: [] }),
 
   // ── Attendance ────────────────────────────────────────────
   attendanceLogs: [],
-
   addAttendance: async (type) => {
-    const now  = new Date()
-    const log  = {
+    const now = new Date()
+    const log = {
       type,
       date:      now.toLocaleDateString('id-ID'),
       time:      now.toLocaleTimeString('id-ID'),
       timestamp: now.getTime(),
     }
-    const data = await api<AttendanceLog>('/api/attendance', {
-      method: 'POST', body: JSON.stringify(log),
-    })
+    const data = await api<AttendanceLog>('/api/attendance', { method: 'POST', body: JSON.stringify(log) })
     set(s => ({ attendanceLogs: [data, ...s.attendanceLogs] }))
   },
 }))
