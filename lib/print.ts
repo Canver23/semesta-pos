@@ -138,7 +138,6 @@ export function buildThermalHTML(inv: Invoice, paperWidth: '58mm' | '80mm' = '58
     .sig-line { border-top: 1px solid #000; margin-top: 12mm; padding-top: 1mm; }
   </style></head><body>
   <div class="store-name">${STORE_INFO.name}</div>
-  <div class="center meta">${STORE_INFO.address}</div>
   <div class="divider"></div>
   <div class="no-inv">${inv.id}</div>
   <div class="center meta">Kepada: <strong>${inv.custName || 'Pembeli Umum'}</strong></div>
@@ -197,7 +196,6 @@ export function buildThermalStrukHTML(
     .footer-text { text-align: center; font-size: 7pt; color: #666; margin-top: 3mm; }
   </style></head><body>
   <div class="store-name">${STORE_INFO.name}</div>
-  <div class="meta">${STORE_INFO.address}</div>
   <div class="divider"></div>
   <div class="meta">${trx.date} ${trx.time} · ${trx.id}</div>
   <div class="divider"></div>

@@ -10,24 +10,6 @@ import type { Transaction } from '@/lib/types'
 import { clsx } from 'clsx'
 
 // ─────────────────────────────────────────────────────────────
-// BUILD STRUK HTML — layout invoice (21×14cm, sama dengan invoice pelanggan)
-// Untuk transaksi kasir langsung (tanpa data pelanggan)
-// ─────────────────────────────────────────────────────────────
-
-// ─── Print struk via popup (sama metode dengan invoice) ───────
-  cartSnapshot: { name: string; size?: string; qty: number; unit: string; price: number }[]
-) {
-  const w = window.open('', '_blank', 'width=900,height=650')
-  if (!w) {
-    alert('Pop-up diblokir browser.\nIzinkan pop-up: klik ikon kunci/info di address bar → izinkan pop-up untuk localhost.')
-    return
-  }
-  w.document.open()
-  w.document.write(buildStrukHTML(trx, cartSnapshot))
-  w.document.close()
-}
-
-// ─────────────────────────────────────────────────────────────
 // MAIN POS PAGE
 // ─────────────────────────────────────────────────────────────
 export default function PosPage() {
@@ -41,7 +23,7 @@ export default function PosPage() {
   const [lastTrx, setLastTrx]       = useState<Transaction | null>(null)
   // Snapshot cart at payment time (karena cart dibersihkan setelah transaksi)
   const [cartSnap, setCartSnap]     = useState<{ name: string; size?: string; qty: number; unit: string; price: number }[]>([])
-
+  const [showPrintSelect, setPrintSelect] = useState(false)
   const categories = ['Semua', ...Array.from(new Set(products.map(p => p.category)))]
 
   const filtered = products.filter(p => {
@@ -318,7 +300,6 @@ export default function PosPage() {
             {/* Mini preview */}
             <div className="bg-gray-50 rounded-lg p-4 font-mono text-xs">
               <p className="font-bold text-center text-sm mb-0.5">{STORE_INFO.name}</p>
-              <p className="text-center text-gray-500 mb-0.5">{STORE_INFO.address}</p>
               <p className="text-center text-gray-400 mb-2">{lastTrx.date} {lastTrx.time} · {lastTrx.id}</p>
               <hr className="border-dashed border-gray-300 mb-2"/>
               {cartSnap.map((item, i) => (
