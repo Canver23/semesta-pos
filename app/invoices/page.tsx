@@ -6,8 +6,67 @@ import Modal from '@/components/ui/Modal'
 import { useStore } from '@/lib/store'
 import { fmt, fmtDate, todayISO, UNITS, STORE_INFO } from '@/lib/utils'
 import type { Invoice, InvoiceItem } from '@/lib/types'
-import { Printer, Plus, X, Trash2, Eye, Smartphone, Monitor, Pencil } from 'lucide-react'
+import { Printer, Plus, X, Trash2, Eye, Smartphone, Monitor, Pencil, Download } from 'lucide-react'
 import { buildInvoiceHTML, buildThermalHTML, openPrintPopup } from '@/lib/print'
+
+
+// ─────────────────────────────────────────────────────────────
+// DOWNLOAD INVOICE sebagai file HTML
+// Format nama: Invoice_NamaPembeli_YYYYMMDD
+// ─────────────────────────────────────────────────────────────
+function downloadInvoice(inv: Invoice) {
+  // Format nama file: Invoice_NAMA_YYYYMMDD.pdf
+  const tglRaw     = inv.date.replace(/-/g, '')
+  const namaBersih = (inv.custName || 'Pembeli_Umum')
+    .replace(/[^a-zA-Z0-9 _-]/g, '')
+    .replace(/\s+/g, '_')
+    .toUpperCase()
+  const filename = `Invoice_${namaBersih}_${tglRaw}.pdf`
+
+  // Build invoice HTML content
+  const invoiceHTML = buildInvoiceHTML(inv)
+
+  // Create hidden iframe to render invoice, then print to PDF
+  const printWindow = window.open('', '_blank', 'width=1,height=1')
+  if (!printWindow) {
+    alert('Pop-up diblokir. Izinkan pop-up di address bar.')
+    return
+  }
+
+  // Write full HTML with print-to-PDF trigger
+  printWindow.document.write(`<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>${filename}</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"><\/script>
+  <style>
+    body { margin: 0; padding: 0; background: white; }
+  </style>
+</head>
+<body>
+  <div id="invoice-content">
+    ${invoiceHTML.replace(/<script[\s\S]*?<\/script>/gi, '')}
+  </div>
+  <script>
+    window.onload = function() {
+      const element = document.getElementById('invoice-content')
+      const opt = {
+        margin:      [5, 5, 5, 5],
+        filename:    '${filename}',
+        image:       { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true },
+        jsPDF:       { unit: 'mm', format: [210, 140], orientation: 'landscape' }
+      }
+      html2pdf().set(opt).from(element).save().then(function() {
+        setTimeout(function() { window.close() }, 500)
+      })
+    }
+  <\/script>
+</body>
+</html>`)
+  printWindow.document.close()
+}
 
 // ─────────────────────────────────────────────────────────────
 // SHARED INVOICE FORM (dipakai oleh Create & Edit)
@@ -523,6 +582,9 @@ function InvoicesContent() {
                     <button onClick={() => setPrintTarget(inv)} className="btn btn-outline btn-sm text-brand-600">
                       <Printer size={12} /> Print
                     </button>
+                    <button onClick={() => downloadInvoice(inv)} className="btn btn-outline btn-sm text-green-600">
+                      <Download size={12} /> Unduh
+                    </button>
                     <button
                       onClick={() => updateInvoiceStatus(inv.id, inv.status === 'Lunas' ? 'Belum Lunas' : 'Lunas').catch(console.error)}
                       className="btn btn-outline btn-sm text-xs">
@@ -570,6 +632,9 @@ function InvoicesContent() {
             <div className="flex gap-2">
               <button onClick={() => { setEditTarget(viewing); setViewing(null) }} className="btn-outline">
                 <Pencil size={14}/> Edit
+              </button>
+              <button onClick={() => downloadInvoice(viewing)} className="btn-outline">
+                <Download size={14} /> Unduh
               </button>
               <button onClick={() => setPrintTarget(viewing)} className="btn-blue">
                 <Printer size={14} /> Cetak Invoice
