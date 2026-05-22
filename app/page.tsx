@@ -1,13 +1,163 @@
 'use client'
 import { useState, useEffect } from 'react'
-import { Search, Trash2, Plus, Minus, Smartphone, Monitor } from 'lucide-react'
+import { Search, Trash2, Plus, Minus, Smartphone, Monitor, X } from 'lucide-react'
 import Sidebar from '@/components/Sidebar'
 import Modal from '@/components/ui/Modal'
 import { useStore } from '@/lib/store'
 import { fmt, CATEGORY_ICONS, STORE_INFO } from '@/lib/utils'
 import { buildInvoiceHTML, buildThermalStrukHTML, openPrintPopup } from '@/lib/print'
-import type { Transaction } from '@/lib/types'
+import type { Product, Transaction } from '@/lib/types'
 import { clsx } from 'clsx'
+
+// ─────────────────────────────────────────────────────────────
+// PRODUCT PICKER POPUP
+// Muncul saat klik produk yang punya harga grosir / varian
+// ─────────────────────────────────────────────────────────────
+function ProductPicker({
+  product,
+  onSelect,
+  onClose,
+}: {
+  product: Product
+  onSelect: (name: string, price: number, unit: string, variant?: string) => void
+  onClose: () => void
+}) {
+  const hasWholesale = product.priceWholesale > 0
+  const hasVariants  = product.variants && product.variants.length > 0
+
+  const [selectedVariant, setSelectedVariant] = useState<string>(
+    hasVariants ? product.variants[0].id : ''
+  )
+  const [priceType, setPriceType] = useState<'retail' | 'wholesale'>('retail')
+
+  const variantName = hasVariants
+    ? product.variants.find(v => v.id === selectedVariant)?.name ?? ''
+    : ''
+
+  const price = priceType === 'wholesale' ? product.priceWholesale : product.price
+  const unit  = priceType === 'wholesale' ? product.unitWholesale  : product.unit
+
+  const displayName = hasVariants
+    ? `${product.name} - ${variantName}`
+    : product.name
+
+  function handleAdd() {
+    onSelect(displayName, price, unit, hasVariants ? variantName : undefined)
+    onClose()
+  }
+
+  return (
+    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/40 p-4">
+      <div className="bg-white rounded-xl border border-gray-200 p-5 w-full max-w-sm shadow-lg">
+        {/* Header */}
+        <div className="flex items-start justify-between mb-4">
+          <div>
+            <p className="font-medium text-base">{product.name}</p>
+            {product.size && <p className="text-xs text-gray-400 mt-0.5">Ukuran: {product.size}</p>}
+          </div>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 p-1"><X size={16}/></button>
+        </div>
+
+        {/* Varian warna */}
+        {hasVariants && (
+          <div className="mb-4">
+            <p className="text-xs font-medium text-gray-500 mb-2">Pilih Varian</p>
+            <div className="flex flex-wrap gap-2">
+              {product.variants.map(v => (
+                <button
+                  key={v.id}
+                  onClick={() => setSelectedVariant(v.id)}
+                  className={clsx(
+                    'px-3 py-1.5 rounded-lg border text-sm font-medium transition',
+                    selectedVariant === v.id
+                      ? 'bg-brand-400 text-white border-brand-400'
+                      : 'bg-white text-gray-700 border-gray-200 hover:border-brand-300'
+                  )}
+                >
+                  {v.name}
+                  <span className="ml-1.5 text-[10px] opacity-70">stok {v.stock}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Pilihan harga */}
+        <div className="mb-4">
+          <p className="text-xs font-medium text-gray-500 mb-2">Pilih Harga</p>
+          <div className="flex flex-col gap-2">
+            {/* Eceran */}
+            <button
+              onClick={() => setPriceType('retail')}
+              className={clsx(
+                'flex items-center justify-between p-3 rounded-xl border text-left transition',
+                priceType === 'retail'
+                  ? 'border-brand-400 bg-brand-50'
+                  : 'border-gray-200 hover:border-gray-300'
+              )}
+            >
+              <div>
+                <p className="text-sm font-medium">Eceran</p>
+                <p className="text-xs text-gray-500">per {product.unit}</p>
+              </div>
+              <p className={clsx('text-base font-semibold', priceType === 'retail' ? 'text-brand-600' : 'text-gray-700')}>
+                {fmt(product.price)}
+              </p>
+            </button>
+
+            {/* Grosir */}
+            {hasWholesale && (
+              <button
+                onClick={() => setPriceType('wholesale')}
+                className={clsx(
+                  'flex items-center justify-between p-3 rounded-xl border text-left transition',
+                  priceType === 'wholesale'
+                    ? 'border-green-400 bg-green-50'
+                    : 'border-gray-200 hover:border-gray-300'
+                )}
+              >
+                <div>
+                  <p className="text-sm font-medium">Grosir</p>
+                  <p className="text-xs text-gray-500">
+                    per {product.unitWholesale}
+                    {product.qtyWholesale > 0 && ` · isi ${product.qtyWholesale} ${product.unit}`}
+                  </p>
+                  {product.qtyWholesale > 0 && (
+                    <p className="text-xs text-green-600 mt-0.5">
+                      ≈ {fmt(Math.round(product.priceWholesale / product.qtyWholesale))}/{product.unit}
+                    </p>
+                  )}
+                </div>
+                <p className={clsx('text-base font-semibold', priceType === 'wholesale' ? 'text-green-700' : 'text-gray-700')}>
+                  {fmt(product.priceWholesale)}
+                </p>
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Summary */}
+        <div className="bg-gray-50 rounded-lg px-3 py-2 mb-4 text-sm">
+          <div className="flex justify-between">
+            <span className="text-gray-500">Produk:</span>
+            <span className="font-medium">{displayName}</span>
+          </div>
+          <div className="flex justify-between mt-0.5">
+            <span className="text-gray-500">Harga:</span>
+            <span className="font-medium text-brand-600">{fmt(price)}/{unit}</span>
+          </div>
+        </div>
+
+        <div className="flex gap-2">
+          <button onClick={onClose} className="btn-outline flex-1">Batal</button>
+          <button onClick={handleAdd} className="btn-blue flex-[2]">
+            + Tambah ke Cart
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
 
 // ─────────────────────────────────────────────────────────────
 // MAIN POS PAGE
@@ -15,15 +165,17 @@ import { clsx } from 'clsx'
 export default function PosPage() {
   const { products, cart, addToCart, changeQty, removeFromCart, clearCart, addTransaction } = useStore()
 
-  const [activeCat, setActiveCat]   = useState('Semua')
-  const [search, setSearch]         = useState('')
-  const [showPay, setShowPay]       = useState(false)
-  const [showReceipt, setShowReceipt] = useState(false)
-  const [cashInput, setCashInput]   = useState('')
-  const [lastTrx, setLastTrx]       = useState<Transaction | null>(null)
-  // Snapshot cart at payment time (karena cart dibersihkan setelah transaksi)
-  const [cartSnap, setCartSnap]     = useState<{ name: string; size?: string; qty: number; unit: string; price: number }[]>([])
+  const [activeCat, setActiveCat]       = useState('Semua')
+  const [search, setSearch]             = useState('')
+  const [showPay, setShowPay]           = useState(false)
+  const [showReceipt, setShowReceipt]   = useState(false)
+  const [cashInput, setCashInput]       = useState('')
+  const [lastTrx, setLastTrx]           = useState<Transaction | null>(null)
+  const [cartSnap, setCartSnap]         = useState<{ name: string; size?: string; qty: number; unit: string; price: number }[]>([])
   const [showPrintSelect, setPrintSelect] = useState(false)
+  // Product picker popup
+  const [pickerProduct, setPickerProduct] = useState<Product | null>(null)
+
   const categories = ['Semua', ...Array.from(new Set(products.map(p => p.category)))]
 
   const filtered = products.filter(p => {
@@ -37,7 +189,6 @@ export default function PosPage() {
   const change = cash - total
   const canPay = cash >= total && cash > 0
 
-  // Enter key shortcut
   useEffect(() => {
     const fn = (e: KeyboardEvent) => {
       if (e.key === 'Enter' && showPay && canPay) confirmPayment()
@@ -46,12 +197,30 @@ export default function PosPage() {
     return () => document.removeEventListener('keydown', fn)
   })
 
+  // Klik produk — kalau ada harga grosir / varian, buka picker
+  // Kalau tidak ada, langsung tambah ke cart
+  function handleProductClick(p: Product) {
+    if (p.stock === 0) return
+    const hasWholesale = p.priceWholesale > 0
+    const hasVariants  = p.variants && p.variants.length > 0
+    if (hasWholesale || hasVariants) {
+      setPickerProduct(p)
+    } else {
+      addToCart({ id: p.id, name: p.name, price: p.price, unit: p.unit })
+    }
+  }
+
+  // Dari ProductPicker — tambah ke cart dengan nama/harga/unit yang sudah dipilih
+  function handlePickerSelect(name: string, price: number, unit: string) {
+    if (!pickerProduct) return
+    // Gunakan id produk asli, tapi nama/harga/unit dari pilihan
+    addToCart({ id: pickerProduct.id, name, price, unit })
+  }
+
   async function confirmPayment() {
-    const now = new Date()
-    // Simpan snapshot cart SEBELUM di-clear
+    const now  = new Date()
     const snap = cart.map(i => ({ name: i.name, qty: i.qty, unit: i.unit, price: i.price }))
     setCartSnap(snap)
-
     const trx = await addTransaction({
       date:   now.toLocaleDateString('id-ID'),
       time:   now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
@@ -79,18 +248,12 @@ export default function PosPage() {
       <main className="flex flex-1 flex-col md:flex-row overflow-hidden">
         {/* ── Left: Products ─────────────────────────────── */}
         <div className="flex flex-col flex-1 p-3 md:p-4 gap-3 overflow-hidden min-h-0">
-          {/* Search */}
           <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-xl px-3 py-2">
             <Search size={14} className="text-gray-400" />
-            <input
-              className="flex-1 text-sm outline-none bg-transparent"
-              placeholder="Cari produk..."
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-            />
+            <input className="flex-1 text-sm outline-none bg-transparent"
+              placeholder="Cari produk..." value={search} onChange={e => setSearch(e.target.value)} />
           </div>
 
-          {/* Category tabs */}
           <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-thin">
             {categories.map(c => (
               <button key={c} onClick={() => setActiveCat(c)}
@@ -105,30 +268,53 @@ export default function PosPage() {
             ))}
           </div>
 
-          {/* Products grid */}
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 overflow-y-auto flex-1 scrollbar-thin">
             {filtered.length === 0 && (
               <p className="col-span-full text-center text-gray-400 text-sm py-16">Produk tidak ditemukan</p>
             )}
-            {filtered.map(p => (
-              <button key={p.id}
-                onClick={() => p.stock > 0 && addToCart({ id: p.id, name: p.name, price: p.price, unit: p.unit })}
-                disabled={p.stock === 0}
-                className={clsx(
-                  'relative bg-white border rounded-xl p-3 text-left transition',
-                  p.stock === 0
-                    ? 'opacity-50 cursor-not-allowed border-gray-200'
-                    : 'border-gray-200 hover:border-brand-200 hover:bg-brand-50 active:scale-95'
-                )}>
-                {p.bestseller && <span className="absolute top-2 right-2 badge badge-amber text-[10px]">Terlaris</span>}
-                <div className="w-9 h-9 rounded-lg bg-brand-50 flex items-center justify-center mb-2 text-lg">
-                  {CATEGORY_ICONS[p.category] ?? '📦'}
-                </div>
-                <p className="text-sm font-medium text-gray-900 leading-tight mb-1">{p.name}</p>
-                <p className="text-sm text-brand-600 font-medium">{fmt(p.price)}</p>
-                <p className="text-[11px] text-gray-400 mt-0.5">Stok: {p.stock}</p>
-              </button>
-            ))}
+            {filtered.map(p => {
+              const hasWholesale = p.priceWholesale > 0
+              const hasVariants  = p.variants && p.variants.length > 0
+              const needsPicker  = hasWholesale || hasVariants
+              return (
+                <button key={p.id}
+                  onClick={() => handleProductClick(p)}
+                  disabled={p.stock === 0}
+                  className={clsx(
+                    'relative bg-white border rounded-xl p-3 text-left transition',
+                    p.stock === 0
+                      ? 'opacity-50 cursor-not-allowed border-gray-200'
+                      : 'border-gray-200 hover:border-brand-200 hover:bg-brand-50 active:scale-95'
+                  )}>
+                  {p.bestseller && <span className="absolute top-2 right-2 badge badge-amber text-[10px]">Terlaris</span>}
+                  {/* Badge grosir */}
+                  {hasWholesale && (
+                    <span className="absolute top-2 left-2 badge bg-green-50 text-green-700 text-[10px]">Grosir</span>
+                  )}
+                  <div className="w-9 h-9 rounded-lg bg-brand-50 flex items-center justify-center mb-2 text-lg">
+                    {CATEGORY_ICONS[p.category] ?? '📦'}
+                  </div>
+                  <p className="text-sm font-medium text-gray-900 leading-tight mb-1">{p.name}</p>
+                  <p className="text-sm text-brand-600 font-medium">{fmt(p.price)}</p>
+                  {hasWholesale && (
+                    <p className="text-[11px] text-green-600">{fmt(p.priceWholesale)}/{p.unitWholesale}</p>
+                  )}
+                  {/* Varian preview */}
+                  {hasVariants && (
+                    <div className="flex flex-wrap gap-0.5 mt-1">
+                      {p.variants.slice(0, 3).map(v => (
+                        <span key={v.id} className="text-[10px] bg-gray-100 text-gray-500 px-1 rounded">{v.name}</span>
+                      ))}
+                      {p.variants.length > 3 && <span className="text-[10px] text-gray-400">+{p.variants.length - 3}</span>}
+                    </div>
+                  )}
+                  <p className="text-[11px] text-gray-400 mt-0.5">Stok: {p.stock}</p>
+                  {needsPicker && (
+                    <p className="text-[10px] text-brand-400 mt-0.5">Tap untuk pilih →</p>
+                  )}
+                </button>
+              )
+            })}
           </div>
         </div>
 
@@ -156,18 +342,10 @@ export default function PosPage() {
                 <div className="flex items-center gap-1">
                   <button onClick={() => changeQty(item.id, -0.5)} className="w-6 h-6 rounded border border-gray-200 bg-white flex items-center justify-center hover:bg-gray-100 text-gray-500 text-xs font-bold">½-</button>
                   <button onClick={() => changeQty(item.id, -1)} className="w-6 h-6 rounded border border-gray-200 bg-white flex items-center justify-center hover:bg-gray-100"><Minus size={11}/></button>
-                  <input
-                    type="number"
-                    step="0.001"
-                    min="0.001"
-                    value={item.qty}
-                    onChange={e => {
-                      const v = parseFloat(e.target.value)
-                      if (v > 0) changeQty(item.id, v - item.qty)
-                    }}
-                    className="text-xs font-medium w-12 text-center border border-gray-200 rounded bg-white outline-none focus:border-brand-400 px-1 py-0.5"
-                  />
-                  <button onClick={() => changeQty(item.id, 1)}  className="w-6 h-6 rounded border border-gray-200 bg-white flex items-center justify-center hover:bg-gray-100"><Plus  size={11}/></button>
+                  <input type="number" step="0.001" min="0.001" value={item.qty}
+                    onChange={e => { const v = parseFloat(e.target.value); if (v > 0) changeQty(item.id, v - item.qty) }}
+                    className="text-xs font-medium w-12 text-center border border-gray-200 rounded bg-white outline-none focus:border-brand-400 px-1 py-0.5" />
+                  <button onClick={() => changeQty(item.id, 1)} className="w-6 h-6 rounded border border-gray-200 bg-white flex items-center justify-center hover:bg-gray-100"><Plus size={11}/></button>
                 </div>
                 <button onClick={() => removeFromCart(item.id)} className="w-6 h-6 rounded border border-gray-200 flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 hover:border-red-200 transition">
                   <Trash2 size={11}/>
@@ -182,16 +360,21 @@ export default function PosPage() {
             <div className="flex justify-between text-base font-semibold">
               <span>Total</span><span>{fmt(total)}</span>
             </div>
-            <button
-              onClick={() => { setCashInput(''); setShowPay(true) }}
-              disabled={cart.length === 0}
-              className="btn-blue w-full py-3"
-            >
+            <button onClick={() => { setCashInput(''); setShowPay(true) }} disabled={cart.length === 0} className="btn-blue w-full py-3">
               Bayar Sekarang
             </button>
           </div>
         </div>
       </main>
+
+      {/* ── Product Picker Popup ───────────────────────── */}
+      {pickerProduct && (
+        <ProductPicker
+          product={pickerProduct}
+          onSelect={handlePickerSelect}
+          onClose={() => setPickerProduct(null)}
+        />
+      )}
 
       {/* ── Payment Modal ─────────────────────────────── */}
       <Modal open={showPay} onClose={() => setShowPay(false)} title="Pembayaran — Cash">
@@ -220,72 +403,39 @@ export default function PosPage() {
           )}
           <div className="flex gap-2 pt-1">
             <button onClick={() => setShowPay(false)} className="btn-outline flex-1">Batal</button>
-            <button onClick={confirmPayment} disabled={!canPay} className="btn-blue flex-[2]">
-              Konfirmasi (Enter)
-            </button>
+            <button onClick={confirmPayment} disabled={!canPay} className="btn-blue flex-[2]">Konfirmasi (Enter)</button>
           </div>
         </div>
       </Modal>
 
-      {/* ── Print selector for struk ─────────────────── */}
+      {/* ── Print selector ─────────────────────────────── */}
       {showPrintSelect && lastTrx && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/40 p-4">
           <div className="bg-white rounded-xl border border-gray-200 p-6 w-full max-w-sm shadow-lg">
             <p className="font-medium text-base mb-1">Pilih Metode Cetak</p>
             <p className="text-xs text-gray-500 mb-4">Pilih sesuai printer yang digunakan</p>
             <div className="flex flex-col gap-3">
-              <button
-                onClick={() => {
-                  // Build as invoice format
-                  const inv = {
-                    id: lastTrx.id, custId: 'UMUM', custName: 'Pembeli Umum',
-                    date: new Date().toISOString().slice(0,10),
-                    due: new Date().toISOString().slice(0,10),
-                    items: cartSnap.map(i => ({ name:i.name, size:i.size||'', qty:i.qty, unit:i.unit, price:i.price, total:i.price*i.qty })),
-                    total: lastTrx.total, status: 'Lunas' as const, note: ''
-                  }
-                  openPrintPopup(buildInvoiceHTML(inv))
-                  setPrintSelect(false)
-                }}
-                className="flex items-center gap-4 p-4 rounded-xl border border-gray-200 hover:border-brand-300 hover:bg-brand-50 transition text-left"
-              >
-                <div className="w-10 h-10 rounded-lg bg-brand-50 flex items-center justify-center shrink-0">
-                  <Monitor size={20} className="text-brand-600"/>
-                </div>
-                <div>
-                  <p className="font-medium text-sm">Invoice 21×14cm</p>
-                  <p className="text-xs text-gray-500">Printer desktop / dot matrix</p>
-                </div>
+              <button onClick={() => {
+                const inv = {
+                  id: lastTrx.id, custId: 'UMUM', custName: 'Pembeli Umum',
+                  date: new Date().toISOString().slice(0,10), due: new Date().toISOString().slice(0,10),
+                  items: cartSnap.map(i => ({ name:i.name, size:i.size||'', qty:i.qty, unit:i.unit, price:i.price, total:i.price*i.qty })),
+                  total: lastTrx.total, status: 'Lunas' as const, note: ''
+                }
+                openPrintPopup(buildInvoiceHTML(inv)); setPrintSelect(false)
+              }} className="flex items-center gap-4 p-4 rounded-xl border border-gray-200 hover:border-brand-300 hover:bg-brand-50 transition text-left">
+                <div className="w-10 h-10 rounded-lg bg-brand-50 flex items-center justify-center shrink-0"><Monitor size={20} className="text-brand-600"/></div>
+                <div><p className="font-medium text-sm">Invoice 21×14cm</p><p className="text-xs text-gray-500">Printer desktop / dot matrix</p></div>
               </button>
-              <button
-                onClick={() => {
-                  openPrintPopup(buildThermalStrukHTML(lastTrx, cartSnap, '58mm'))
-                  setPrintSelect(false)
-                }}
-                className="flex items-center gap-4 p-4 rounded-xl border border-gray-200 hover:border-brand-300 hover:bg-brand-50 transition text-left"
-              >
-                <div className="w-10 h-10 rounded-lg bg-green-50 flex items-center justify-center shrink-0">
-                  <Smartphone size={20} className="text-green-600"/>
-                </div>
-                <div>
-                  <p className="font-medium text-sm">Struk Thermal 58mm</p>
-                  <p className="text-xs text-gray-500">Bluetooth printer di HP</p>
-                </div>
+              <button onClick={() => { openPrintPopup(buildThermalStrukHTML(lastTrx, cartSnap, '58mm')); setPrintSelect(false) }}
+                className="flex items-center gap-4 p-4 rounded-xl border border-gray-200 hover:border-brand-300 hover:bg-brand-50 transition text-left">
+                <div className="w-10 h-10 rounded-lg bg-green-50 flex items-center justify-center shrink-0"><Smartphone size={20} className="text-green-600"/></div>
+                <div><p className="font-medium text-sm">Struk Thermal 58mm</p><p className="text-xs text-gray-500">Bluetooth printer di HP</p></div>
               </button>
-              <button
-                onClick={() => {
-                  openPrintPopup(buildThermalStrukHTML(lastTrx, cartSnap, '80mm'))
-                  setPrintSelect(false)
-                }}
-                className="flex items-center gap-4 p-4 rounded-xl border border-gray-200 hover:border-brand-300 hover:bg-brand-50 transition text-left"
-              >
-                <div className="w-10 h-10 rounded-lg bg-amber-50 flex items-center justify-center shrink-0">
-                  <Smartphone size={20} className="text-amber-600"/>
-                </div>
-                <div>
-                  <p className="font-medium text-sm">Struk Thermal 80mm</p>
-                  <p className="text-xs text-gray-500">Bluetooth printer 80mm di HP</p>
-                </div>
+              <button onClick={() => { openPrintPopup(buildThermalStrukHTML(lastTrx, cartSnap, '80mm')); setPrintSelect(false) }}
+                className="flex items-center gap-4 p-4 rounded-xl border border-gray-200 hover:border-brand-300 hover:bg-brand-50 transition text-left">
+                <div className="w-10 h-10 rounded-lg bg-amber-50 flex items-center justify-center shrink-0"><Smartphone size={20} className="text-amber-600"/></div>
+                <div><p className="font-medium text-sm">Struk Thermal 80mm</p><p className="text-xs text-gray-500">Bluetooth printer 80mm di HP</p></div>
               </button>
             </div>
             <button onClick={() => setPrintSelect(false)} className="btn-outline w-full mt-3">Batal</button>
@@ -293,11 +443,10 @@ export default function PosPage() {
         </div>
       )}
 
-      {/* ── Receipt Modal (preview sebelum print) ─────── */}
+      {/* ── Receipt Modal ─────────────────────────────── */}
       <Modal open={showReceipt} onClose={newTransaction} title={`Invoice — ${lastTrx?.id ?? ''}`} size="md">
         {lastTrx && (
           <div className="flex flex-col gap-3">
-            {/* Mini preview */}
             <div className="bg-gray-50 rounded-lg p-4 font-mono text-xs">
               <p className="font-bold text-center text-sm mb-0.5">{STORE_INFO.name}</p>
               <p className="text-center text-gray-400 mb-2">{lastTrx.date} {lastTrx.time} · {lastTrx.id}</p>
@@ -313,19 +462,9 @@ export default function PosPage() {
               <div className="flex justify-between text-gray-500 mt-0.5"><span>Cash</span><span>{fmt(lastTrx.cash)}</span></div>
               <div className="flex justify-between text-gray-500"><span>Kembalian</span><span>{fmt(lastTrx.change)}</span></div>
             </div>
-            <p className="text-xs text-gray-400 text-center">
-              Cetak akan memakai layout Invoice 21×14cm (sama dengan invoice pelanggan)
-            </p>
             <div className="flex gap-2">
-              <button
-                onClick={() => setPrintSelect(true)}
-                className="btn-blue flex-1 py-2.5"
-              >
-                🖨 Cetak
-              </button>
-              <button onClick={newTransaction} className="btn-outline flex-1 py-2.5">
-                Transaksi Baru
-              </button>
+              <button onClick={() => setPrintSelect(true)} className="btn-blue flex-1 py-2.5">🖨 Cetak</button>
+              <button onClick={newTransaction} className="btn-outline flex-1 py-2.5">Transaksi Baru</button>
             </div>
           </div>
         )}

@@ -1,3 +1,10 @@
+// ─── Product Variant (warna/varian) ──────────────────────────
+export interface ProductVariant {
+  id: string        // e.g. "hitam", "putih", "merah"
+  name: string      // "Hitam", "Putih", "Merah"
+  stock: number
+}
+
 // ─── Products ────────────────────────────────────────────────
 export interface Product {
   id: number
@@ -5,14 +12,22 @@ export interface Product {
   category: string
   size: string
   unit: string
-  price: number
+  price: number       // harga eceran (default / harga umum)
   stock: number
   bestseller: boolean
+
+  // Harga grosir (opsional — kosong = tidak punya harga grosir)
+  priceWholesale: number    // harga per satuan grosir, 0 = tidak ada
+  unitWholesale: string     // satuan grosir, e.g. "Pack", "Bal", "Karton"
+  qtyWholesale: number      // isi per satuan grosir, e.g. 10 (1 Pack = 10 Pcs)
+
+  // Varian warna/tipe (opsional — kosong = tidak punya varian)
+  variants: ProductVariant[]
 }
 
 // ─── Customers ───────────────────────────────────────────────
 export interface CustomerPrice {
-  prodId: number | null   // null = produk khusus pelanggan (tidak ada di katalog umum)
+  prodId: number | null
   name: string
   size: string
   unit: string
@@ -20,21 +35,23 @@ export interface CustomerPrice {
 }
 
 export interface Customer {
-  id: string              // e.g. "C001"
+  id: string
   name: string
   phone: string
   email: string
   address: string
-  prices: CustomerPrice[] // harga & produk khusus pelanggan ini
+  prices: CustomerPrice[]
 }
 
 // ─── Cart ────────────────────────────────────────────────────
 export interface CartItem {
   id: number
-  name: string
+  name: string          // bisa include varian: "Kresek Mobil 15 - Hitam"
   price: number
   qty: number
   unit: string
+  variant?: string      // nama varian yang dipilih, opsional
+  priceType?: 'retail' | 'wholesale'  // jenis harga yang dipilih
 }
 
 // ─── Invoice ─────────────────────────────────────────────────
@@ -50,11 +67,11 @@ export interface InvoiceItem {
 export type InvoiceStatus = 'Belum Lunas' | 'Lunas'
 
 export interface Invoice {
-  id: string              // e.g. "SMT-20250709-0001"
+  id: string
   custId: string
   custName: string
-  date: string            // "YYYY-MM-DD"
-  due: string             // "YYYY-MM-DD"
+  date: string
+  due: string
   items: InvoiceItem[]
   total: number
   status: InvoiceStatus
@@ -63,7 +80,7 @@ export interface Invoice {
 
 // ─── Transactions (kasir) ────────────────────────────────────
 export interface Transaction {
-  id: string              // e.g. "TRX-001"
+  id: string
   date: string
   time: string
   items: string
