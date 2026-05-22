@@ -1,6 +1,6 @@
 import type { Product, Customer, Invoice, Transaction } from './types'
 
-export const SEED_PRODUCTS: Product[] = [
+export const SEED_PRODUCTS: any[] = [
   { id: 1,  name: 'Sterofoam T1',     category: 'Sterofoam', size: 'T1',   unit: 'Pcs',  price: 3500,  stock: 120, bestseller: true  },
   { id: 2,  name: 'Sterofoam T2',     category: 'Sterofoam', size: 'T2',   unit: 'Pcs',  price: 5000,  stock: 85,  bestseller: false },
   { id: 3,  name: 'Sterofoam T3',     category: 'Sterofoam', size: 'T3',   unit: 'Pcs',  price: 7500,  stock: 60,  bestseller: false },
