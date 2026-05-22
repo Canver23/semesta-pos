@@ -43,7 +43,7 @@ export const CATEGORY_ICONS: Record<string, string> = {
   Kantong:   '🛍️',
 }
 
-export const UNITS = ['Pcs', 'Bal', 'Pack', 'Lembar', 'Kg', 'Roll', 'Toros']
+export const UNITS = ['Pcs', 'Bal', 'Pack', 'Lembar', 'Kg', 'Roll', 'Toros'],
 export const CATEGORIES = ['Sterofoam', 'Wrapping', 'Kantong', 'Lainnya'], 
 
 export const STORE_INFO = {
