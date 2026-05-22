@@ -204,7 +204,15 @@ export default function ImportPage() {
         }
       } else {
         if (p.name.trim()) {
-          await addProduct({ ...p, category: cat, bestseller: false })
+          await addProduct({ 
+  ...p, 
+  category: cat, 
+  bestseller: false,
+  variants: [],             // Default varian kosong
+  priceWholesale: 0,        // Default harga grosir 0
+  unitWholesale: p.unit,    // Default satuan grosir disamakan dengan satuan eceran
+  qtyWholesale: 0           // Default minimal grosir 0
+})
           prodCount++
         }
       }
