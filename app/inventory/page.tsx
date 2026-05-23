@@ -26,15 +26,16 @@ export default function InventoryPage() {
   const [editing, setEditing]     = useState<Product | null>(null)
   const [form, setForm]           = useState<Omit<Product, 'id'>>(EMPTY)
   const [newCat, setNewCat]       = useState('')
-  const [newVariant, setNewVariant] = useState('')
+  const [newVariant, setNewVariant]   = useState('')
+  const [wholesaleActive, setWholesaleActive] = useState(false)
 
   const filtered = products.filter(p =>
     (!search    || p.name.toLowerCase().includes(search.toLowerCase())) &&
     (!catFilter || p.category === catFilter)
   )
 
-  function openAdd()             { setEditing(null); setForm({ ...EMPTY, category: categories[0] || 'Sterofoam' }); setModal(true) }
-  function openEdit(p: Product)  { setEditing(p); setForm({ ...p, variants: p.variants ? [...p.variants] : [] }); setModal(true) }
+  function openAdd()             { setEditing(null); setForm({ ...EMPTY, category: categories[0] || 'Sterofoam' }); setWholesaleActive(false); setModal(true) }
+  function openEdit(p: Product)  { setEditing(p); setForm({ ...p, variants: p.variants ? [...p.variants] : [] }); setWholesaleActive(p.priceWholesale > 0 || p.unitWholesale !== ''); setModal(true) }
 
   async function save() {
     if (!form.name.trim()) return
@@ -61,7 +62,7 @@ export default function InventoryPage() {
     f('variants', form.variants.filter(v => v.id !== id))
   }
 
-  const hasWholesale = form.priceWholesale > 0
+  const hasWholesale = wholesaleActive
   const hasVariants  = form.variants.length > 0
 
   return (
@@ -190,8 +191,8 @@ export default function InventoryPage() {
               <div className="flex items-center justify-between mb-3">
                 <p className="text-sm font-medium">📦 Harga Grosir <span className="text-xs text-gray-400 font-normal">(opsional)</span></p>
                 {!hasWholesale && (
-                  <button onClick={() => { f('priceWholesale', 0); f('unitWholesale', 'Pack'); f('qtyWholesale', 1) }}
-                    className="text-xs text-brand-600 hover:underline">+ Aktifkan</button>
+                  <button onClick={() => { setWholesaleActive(true); f('unitWholesale', 'Pack'); f('qtyWholesale', 1) }}
+                    className="text-xs text-brand-600 font-medium hover:underline cursor-pointer">+ Aktifkan</button>
                 )}
               </div>
               {hasWholesale ? (
@@ -218,7 +219,7 @@ export default function InventoryPage() {
                       Harga satuan grosir: {fmt(Math.round(form.priceWholesale / form.qtyWholesale))}/{form.unit}
                     </div>
                   )}
-                  <button onClick={() => { f('priceWholesale', 0); f('unitWholesale', ''); f('qtyWholesale', 0) }}
+                  <button onClick={() => { setWholesaleActive(false); f('priceWholesale', 0); f('unitWholesale', ''); f('qtyWholesale', 0) }}
                     className="text-xs text-red-500 hover:underline self-start">✕ Hapus harga grosir</button>
                 </div>
               ) : (
