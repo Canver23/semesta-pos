@@ -13,37 +13,12 @@ const COURIERS: { name: string; short: string; patterns: RegExp[] }[] = [
   { name: 'Ninja', short: 'Ninja', patterns: [/ninjavan/i] },
 ]
 
-function fixSpacedWords(text: string): string {
-  const pairs: [RegExp, string][] = [
-    [/\bP\s+e\s+n\s+g\s+i\s+r\s+i\s+m\b/gi, 'Pengirim'],
-    [/\bP\s+e\s+n\s+e\s+r\s+i\s+m\s+a\b/gi, 'Penerima'],
-    [/\bT\s+o\s+k\s+o\s+P\s+l\s+a\s+s\s+t\s+i\s+k\s+S\s+e\s+m\s+e\s+s\s+t\s+a\b/gi, 'TokoPlastikSemesta'],
-    [/\bN\s+i\s+c\s+k\s+N\s+a\s+m\s+e\b/gi, 'NickName'],
-    [/\bN\s+o\s*\.\s*\s*P\s+e\s+s\s+a\s+n\s+a\s+n\b/gi, 'No.Pesanan'],
-    [/\bN\s+o\s*\.\s*\s*R\s+e\s+s\s+i\b/gi, 'No.Resi'],
-    [/\bO\s+r\s+d\s+e\s+r\s*I\s*[Dd]\b/gi, 'OrderID'],
-    [/\bP\s+r\s+o\s+d\s+u\s+c\s+t\s+N\s+a\s+m\s+e\b/gi, 'ProductName'],
-    [/\bP\s+r\s+i\s+n\s+t\s+T\s+i\s+m\s+e\b/gi, 'PrintTime'],
-    [/\bC\s+A\s+S\s+H\s+L\s+E\s+S\s+S\b/gi, 'CASHLESS'],
-    [/\bS\s+A\s+M\s+E\s+D\s+A\s+Y\b/gi, 'SAMEDAY'],
-    [/\bF\s+a\s+s\s+t\s+T\s+r\s+a\s+c\s+k\b/gi, 'FastTrack'],
-    [/\bW\s+e\s+i\s+g\s+h\s+t\b/gi, 'Weight'],
-    [/\bS\s+h\s+i\s+p\b/gi, 'Ship'],
-    [/\bS\s+K\s+U\b/gi, 'SKU'],
-    [/\bQ\s+t\s+y\b/gi, 'Qty'],
-    [/\bR\s+E\s+G\b/gi, 'REG'],
-    [/\bE\s+C\s+O\b/gi, 'ECO'],
-    [/\bN\s+D\s+D\b/gi, 'NDD'],
-    [/\bE\s+Z\b/gi, 'EZ'],
-    [/\bS\s+T\s+D\b/gi, 'STD'],
-    [/\bS\s+D\b/gi, 'SD'],
-    [/\bH\s+O\s+M\s+E\b/gi, 'HOME'],
-    [/\bC\s+O\s+D\b/gi, 'COD'],
-    [/\bT\s+T\s+O\s+r\s+d\s+e\s+r\s*I\s*[Dd]\b/gi, 'TTOrderID'],
-  ]
-  let r = text
-  for (const [rx, rep] of pairs) r = r.replace(rx, rep)
-  return r
+function normalizeLine(line: string): string {
+  const parts = line.split(/\s+/)
+  if (parts.length >= 4 && parts.every(p => p.length <= 3)) {
+    return parts.join('')
+  }
+  return line
 }
 
 function detectCourier(text: string): { name: string; short: string } | null {
@@ -68,41 +43,35 @@ function detectCourier(text: string): { name: string; short: string } | null {
 }
 
 function detectMarketplace(text: string): 'TP' | 'SP' | null {
-  if (/TTOrderID/i.test(text)) return 'TP'
-  if (/tiktokshop|tiktok shop/i.test(text.toLowerCase())) return 'TP'
-  if (/No\.Pesanan\s*:/i.test(text)) return 'SP'
-  if (/shopee/i.test(text.toLowerCase())) return 'SP'
-  if (/tokopedia/i.test(text.toLowerCase())) return 'TP'
-  if (/Ship\s*:/i.test(text)) return 'TP'
+  if (/TTOrderID|tt.order.id|ttorderid/i.test(text)) return 'TP'
+  if (/tiktokshop|tiktok shop/i.test(text)) return 'TP'
+  if (/\bNo\s*\.?\s*Pesanan\s*:/i.test(text)) return 'SP'
+  if (/shopee/i.test(text)) return 'SP'
+  if (/tokopedia/i.test(text)) return 'TP'
+  if (/\bShip\s*:/i.test(text)) return 'TP'
   return null
 }
 
 function hasDigits(s: string, min: number = 6): boolean {
-  const d = s.replace(/\D/g, '')
-  return d.length >= min
+  return s.replace(/\D/g, '').length >= min
 }
 
-function looksLikePhone(s: string): boolean {
-  const d = s.replace(/[()+\-.\s]/g, '')
-  if (/^62\d{6,}$/.test(d)) return true
-  if (/^\d{7,}$/.test(d)) return true
-  return false
-}
+const SKIP = /^(TokoPlastikSemesta|Toko\s*Plastik\s*Semesta|Pengirim|Penerima|Jawa|Jalan|Jl|DKI|BANTEN|COD|CASHLESS|Weight|Ship|Order|Product|Print|No|Syarat|SKU|Qty|Nama|Berat|KOTA|KAB|RT|Dusun|Barang|Default|Batas|Nick|Pasar|Kompleks|Penjual|Ruko|CHEFFY|Polynet|Tali|CASHLESS|BATAS|GRADE|STRETCH|FILM|WRAP|WRAPPING|PEMBUNGKUS|MAKANAN|MET|ROLL|NDD|ECO|REG|STD|EZ|HOME|SD|COD|SAMEDAY|FastTrack|EstimatedDate|Jumlah|Weight|Ship|QtyTotal|TTOrderID|NoResi|NickName|OrderID|ProductName|Intransitby|Berat|BatasKirim|No\.Pesanan|Pamokolan|Cihaurbeuti|CIAMIS|BANDUNG|JAKARTA|MAMPANG|PRAPATAN|BALARAJA|Ciparay|Induk|Caringin|Coblong|imam|bonjol|perempatan|GNI|blora|jaten|Kartawijaya|Teluk|Warung|Naga|Shasa|Salad|Garuda)\b/i
 
-const SKIP = /^(TokoPlastikSemesta|Pengirim|Penerima|Jawa|Jalan|Jl|DKI|BANTEN|COD|CASHLESS|Weight|Ship|Order|Product|Print|No|Syarat|SKU|Qty|Nama|Berat|KOTA|KAB|RT|Dusun|Barang|Default|Batas|Nick|Pasar|Kompleks|Penjual|Ruko|CHEFFY|Polynet|Tali|CASHLESS|BATAS|GRADE|STRETCH|FILM|WRAP|WRAPPING|PEMBUNGKUS|MAKANAN|MET|ROLL|NDD|ECO|REG|STD|EZ|HOME|SD|COD|SAMEDAY|FastTrack|EstimatedDate|Jumlah|Weight|Ship|QtyTotal|TTOrderID|NoResi|NickName|OrderID|ProductName|Intransitby|Berat|BatasKirim|No\.Pesanan|Pamokolan|Cihaurbeuti|CIAMIS|BANDUNG|JAKARTA|MAMPANG|PRAPATAN|BALARAJA|Ciparay|Induk|Caringin|Coblong|imam|bonjol|perempatan|GNI|blora|jaten|Kartawijaya|Teluk|Warung|Naga|Shasa|Salad|Garuda)\b/i
+const SKIP_CONTAINS = /(?:PLASTIC|FOOD|GRADE|METER|ROLL|POLYNET|WARING|RAMBANG|JARING|BUAH|PANJANG|RAFIA|GALAKSI|IKAT|KUAT|TEBAL|SERBAGUNA|STRETCH|PLASTIK|FILM|PEMBUNGKUS|MAKANAN|CHEFFY|TALI|POLYNET|CM\s*[Xx]|MET(?:ER|RE)?\b|[Kk][Gg]\b|[Gg][Rr]\b|[Pp][Cc][Ss]\b)/i
 
 function isName(s: string): boolean {
   const t = s.trim()
   if (!t || t.length < 2 || t.length > 60) return false
-  if (/^[\s\d.,()+\-*/:;]+$/.test(t)) return false
-  if (looksLikePhone(t)) return false
+  if (/^[\s\d.,()+\-*/:;|]+$/.test(t)) return false
   if (hasDigits(t)) return false
   if (SKIP.test(t)) return false
+  if (SKIP_CONTAINS.test(t)) return false
   if (/^\d+[\s/]*(gr|kg|pcs|g|roll|meter|cm|mm|KG)/i.test(t)) return false
   return true
 }
 
-function extractNamesFromPenerima(lines: string[]): string[] {
+function extractNames(lines: string[]): string[] {
   const names: string[] = []
 
   for (let i = 0; i < lines.length; i++) {
@@ -112,13 +81,14 @@ function extractNamesFromPenerima(lines: string[]): string[] {
     const m = line.match(/^Penerima\s*:?\s*(.+)/i)
     if (m?.[1]) {
       const val = m[1].trim()
-      if (isName(val) && !/toko/i.test(val)) { names.push(val); continue }
+      if (isName(val)) { names.push(val); continue }
     }
 
     for (let j = 1; j < 30; j++) {
       if (i + j < lines.length) {
         const c = lines[i + j].trim()
-        if (!c || looksLikePhone(c)) continue
+        if (!c) continue
+        if (hasDigits(c)) continue
         if (isName(c)) { names.push(c); break }
       }
     }
@@ -131,7 +101,7 @@ export function parseLabelText(text: string): PdfLabel[] {
   const rawLines = text.split('\n').map(l => l.trim()).filter(Boolean)
   if (rawLines.length < 3) return []
 
-  const lines = rawLines.map(fixSpacedWords)
+  const lines = rawLines.map(normalizeLine)
   const joined = lines.join('\n')
 
   const courier = detectCourier(joined)
@@ -139,8 +109,7 @@ export function parseLabelText(text: string): PdfLabel[] {
 
   const isCargo = /^(?:FastTrack)$/i.test(lines[0])
 
-  const directNames = extractNamesFromPenerima(lines)
-
+  const directNames = extractNames(lines)
   if (directNames.length === 0) return []
 
   let marketplace = detectMarketplace(joined)
