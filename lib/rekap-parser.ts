@@ -27,22 +27,21 @@ const COURIERS: { name: string; short: string; patterns: RegExp[] }[] = [
   { name: 'Ninja', short: 'Ninja', patterns: [/ninjavan/i] },
 ]
 
-function normalizeSpacedText(lines: string[]): string[] {
-  return lines.map(line => {
-    return line.replace(
-      /\b([A-Za-z*])(\s+[A-Za-z*]){2,}\b/g,
-      m => m.replace(/\s+/g, '')
-    )
-  })
+function normalizeSpacedText(line: string): string {
+  return line.replace(
+    /\b([A-Za-z*])(\s+[A-Za-z*0-9]){2,}\b/g,
+    m => m.replace(/\s+/g, '')
+  )
 }
 
 function detectCourier(text: string): { name: string; short: string } | null {
   if (/\bJY\d{8,}\b/.test(text)) return { name: 'J&T', short: 'J&T' }
   if (/\bTSA-?\d{8,}\b/.test(text)) return { name: 'SiCepat', short: 'SiCepat' }
-  if (/No\.?\s*Resi\s*:?\s*\d{12,}/.test(text)) return { name: 'AnterAja', short: 'AA' }
-  if (/\bCASHLESS\b/i.test(text)) return { name: 'AnterAja', short: 'AA' }
-  if (/\bFastTrack\b/i.test(text)) return { name: 'SPX', short: 'SPX' }
-  if (/spexpress|spx/i.test(text)) return { name: 'SPX', short: 'SPX' }
+  if (/^(?:NDD|ECO)$/m.test(text)) return { name: 'J&T', short: 'J&T' }
+  if (/^(?:REG|HOME|FastTrack)$/m.test(text)) return { name: 'SPX', short: 'SPX' }
+  if (/^(?:SD)$/m.test(text)) return { name: 'SiCepat', short: 'SiCepat' }
+  if (/CASHLESS|No\.?\s*Resi\s*:?\s*\d{12,}|anteraja/i.test(text)) return { name: 'AnterAja', short: 'AA' }
+  if (/spexpress|spx|shopee express/i.test(text)) return { name: 'SPX', short: 'SPX' }
   if (/jet\.co\.id|\bjnt\b|j&t/i.test(text)) return { name: 'J&T', short: 'J&T' }
   if (/sicepat|si cepat/i.test(text)) return { name: 'SiCepat', short: 'SiCepat' }
   if (/\bjne\b|jalur nugraha/i.test(text)) return { name: 'JNE', short: 'JNE' }
@@ -54,10 +53,10 @@ function detectCourier(text: string): { name: string; short: string } | null {
 
 function detectMarketplace(text: string): 'TP' | 'SP' | null {
   if (/TT\s*Order\s*ID/i.test(text)) return 'TP'
-  if (text.toLowerCase().includes('tiktokshop') || text.toLowerCase().includes('tiktok shop')) return 'TP'
+  if (/tiktokshop|tiktok shop/i.test(text.toLowerCase())) return 'TP'
   if (/No\.\s*Pesanan\s*:/i.test(text)) return 'SP'
-  if (text.toLowerCase().includes('shopee')) return 'SP'
-  if (text.toLowerCase().includes('tokopedia')) return 'TP'
+  if (/shopee/i.test(text.toLowerCase())) return 'SP'
+  if (/tokopedia/i.test(text.toLowerCase())) return 'TP'
   if (/Ship\s*:|Order\s*Id\s*:|jet\.co\.id/i.test(text)) return 'TP'
   return null
 }
@@ -65,11 +64,12 @@ function detectMarketplace(text: string): 'TP' | 'SP' | null {
 function looksLikeName(s: string): boolean {
   const t = s.trim()
   if (!t || t.length < 2 || t.length > 60) return false
-  if (/^[\d\s.-]+$/.test(t)) return false
+  if (/^[\d\s.,+-]+$/.test(t)) return false
   if (/^\+?62\d{6,}$/.test(t)) return false
   if (/^\d{6,}$/.test(t)) return false
-  if (/^(Toko|Plastik|Semesta|Pengirim|Penerima|Jawa|Jalan|Jl|DKI|BANTEN|COD|CASHLESS|Weight|Ship|Order|Product|Print|No|Syarat|SKU|Qty|Nama|Berat|KOTA|KAB|RT|Dusun|Barang|Default|Batas|Nick|Pasar|Kompleks|Penjual|Ruko|FOOD|Plastik|Kuning|Hitam|CHEFFY|Polynet|Tali|In|Estimated|CASHLESS|BATAS|GRADE|STRETCH|FILM|WRAP|WRAPPING|PEMBUNGKUS|MAKANAN|MET|ROLL|CM|Pcs|Bal|Pack|Lembar|Toros)\b/i.test(t)) return false
-  if (/^\d.*(gr|kg|pcs|g|KG|GR|Pcs|Gram|gram)$/i.test(t)) return false
+  if (/^(?:Toko|Plastik|Semesta|Pengirim|Penerima|Jawa|Jalan|Jl|DKI|BANTEN|COD|CASHLESS|Weight|Ship|Order|Product|Print|No|Syarat|SKU|Qty|Nama|Berat|KOTA|KAB|RT|Dusun|Barang|Default|Batas|Nick|Pasar|Kompleks|Penjual|Ruko|CHEFFY|Polynet|Tali|Estimated|CASHLESS|BATAS|GRADE|STRETCH|FILM|WRAP|WRAPPING|PEMBUNGKUS|MAKANAN|MET|ROLL)\b/i.test(t)) return false
+  if (/^(?:Kuning|Hitam|Pcs|Bal|Pack|Lembar|Toros|Kg|Gram|FOOD|Plastik|CM)\b/i.test(t)) return false
+  if (/^\d.*(?:gr|kg|pcs|g|KG|GR|Pcs|Gram|gram)$/i.test(t)) return false
   return true
 }
 
@@ -86,10 +86,22 @@ function extractNames(lines: string[]): string[] {
       if (looksLikeName(val) && !/toko/i.test(val)) { names.push(val); continue }
     }
 
-    for (let j = i + 1; j < Math.min(lines.length, i + 15); j++) {
+    for (let j = 1; j < 30; j++) {
+      if (i + j < lines.length) {
+        const c = lines[i + j].trim()
+        if (!c || /^\+?62\d{6,}/.test(c) || /^\d{6,}$/.test(c)) continue
+        if (looksLikeName(c)) { names.push(c); break }
+      }
+    }
+
+    let alreadyFoundDown = names.length > 0
+    for (let j = i - 1; j >= 0 && j >= i - 10; j--) {
       const c = lines[j].trim()
       if (!c || /^\+?62\d{6,}/.test(c) || /^\d{6,}$/.test(c)) continue
-      if (looksLikeName(c)) { names.push(c); break }
+      if (looksLikeName(c)) {
+        if (!alreadyFoundDown) names.push(c)
+        break
+      }
     }
   }
 
@@ -97,36 +109,40 @@ function extractNames(lines: string[]): string[] {
     const nm = line.match(/\bNickName\s*:?\s*(.+)/i)
     if (nm) {
       const n = nm[1].trim().split(/[\n\r]/)[0].trim()
-      if (n && n.length >= 2 && n.length <= 60) names.push(n)
+      if (n && n.length >= 2 && n.length <= 60) {
+        if (!names.some(existing => existing.toLowerCase() === n.toLowerCase())) {
+          names.push(n)
+        }
+      }
     }
   }
 
   return names
 }
 
-export function parseLabelText(text: string): PdfLabel | null {
+export function parseLabelText(text: string): PdfLabel[] {
   let lines = text.split('\n').map(l => l.trim()).filter(Boolean)
-  if (lines.length < 3) return null
+  if (lines.length < 3) return []
 
-  lines = normalizeSpacedText(lines)
+  lines = lines.map(normalizeSpacedText)
   const joined = lines.join('\n')
 
   const courier = detectCourier(joined)
-  if (!courier) return null
+  if (!courier) return []
 
   const names = extractNames(lines)
-  if (names.length === 0) return null
+  if (names.length === 0) return []
 
   let marketplace = detectMarketplace(joined)
   if (!marketplace && courier.short === 'SPX') marketplace = 'SP'
   if (!marketplace) marketplace = 'TP'
 
-  return {
+  return names.map(name => ({
     courier: courier.name,
     courierShort: courier.short,
-    recipientName: names[0],
+    recipientName: name,
     marketplace,
-  }
+  }))
 }
 
 export function parseRecap(labels: PdfLabel[]): {

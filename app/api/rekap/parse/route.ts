@@ -12,7 +12,7 @@ function detectGlobalMarketplace(fullText: string): 'TP' | 'SP' | null {
   return null
 }
 
-async function extractPdfText(buffer: Buffer): Promise<string> {
+async function extractPdfText(buffer: Buffer): Promise<string[]> {
   const mod = await import('pdfjs-dist/legacy/build/pdf.mjs')
   mod.GlobalWorkerOptions.workerSrc = new URL(
     'pdfjs-dist/legacy/build/pdf.worker.min.mjs',
@@ -46,63 +46,7 @@ async function extractPdfText(buffer: Buffer): Promise<string> {
     pages.push(lines.join('\n'))
   }
 
-  return pages.join('\n\n')
-}
-
-function processText(fullText: string): PdfLabel[] {
-  const lines = fullText.split('\n').map(l => l.trim()).filter(Boolean)
-
-  const penerimaIndices: number[] = []
-  for (let i = 0; i < lines.length; i++) {
-    if (/penerima\s*:?\b/i.test(lines[i])) {
-      penerimaIndices.push(i)
-    }
-  }
-
-  if (penerimaIndices.length === 0) {
-    penerimaIndices.push(0)
-  }
-
-  const windowSize = 30
-  const chunks: string[] = []
-  for (const idx of penerimaIndices) {
-    const start = Math.max(0, idx - windowSize)
-    const end = Math.min(lines.length, idx + windowSize)
-    chunks.push(lines.slice(start, end).join('\n'))
-  }
-
-  const labels: PdfLabel[] = []
-  for (const chunk of chunks) {
-    const result = parseLabelText(chunk)
-    if (result) {
-      const isDuplicate = labels.some(
-        l => l.recipientName.toLowerCase() === result.recipientName.toLowerCase()
-          && l.courierShort === result.courierShort
-      )
-      if (!isDuplicate) {
-        labels.push(result)
-      }
-    }
-  }
-
-  if (labels.length === 0) {
-    const chunkSize = 50
-    for (let i = 0; i < lines.length; i += chunkSize) {
-      const chunk = lines.slice(i, i + chunkSize).join('\n')
-      const result = parseLabelText(chunk)
-      if (result) {
-        const isDuplicate = labels.some(
-          l => l.recipientName.toLowerCase() === result.recipientName.toLowerCase()
-            && l.courierShort === result.courierShort
-        )
-        if (!isDuplicate) {
-          labels.push(result)
-        }
-      }
-    }
-  }
-
-  return labels
+  return pages
 }
 
 function isDuplicateLabel(a: PdfLabel, b: PdfLabel): boolean {
@@ -133,31 +77,52 @@ export async function POST(request: NextRequest) {
         const arrayBuffer = await file.arrayBuffer()
         const buffer = Buffer.from(arrayBuffer)
 
-        let fullText = ''
+        let pages: string[]
         try {
-          fullText = await extractPdfText(buffer)
+          pages = await extractPdfText(buffer)
         } catch (err: any) {
           errors.push(`${file.name}: gagal membaca PDF (${err.message ?? 'error'})`)
           continue
         }
+
+        const fullText = pages.join('\n\n')
 
         if (!fullText || fullText.trim().length < 10) {
           errors.push(`${file.name}: tidak ada teks (mungkin scan/gambar)`)
           continue
         }
 
-        const marketplace = detectGlobalMarketplace(fullText)
-        const labels = processText(fullText)
+        const globalMarketplace = detectGlobalMarketplace(fullText)
+        let fileLabels: PdfLabel[] = []
 
-        if (labels.length === 0) {
-          errors.push(`${file.name}: tidak ditemukan data penerima`)
-          rawTexts.push(`=== ${file.name} ===\n${fullText.substring(0, 1000)}`)
+        for (const pageText of pages) {
+          if (pageText.trim().length < 10) continue
+          const labels = parseLabelText(pageText)
+          fileLabels.push(...labels)
+        }
+
+        if (fileLabels.length === 0) {
+          const labels = parseLabelText(fullText)
+          fileLabels = labels
+        }
+
+        if (fileLabels.length === 0 && pages.length > 1) {
+          for (const pageText of pages) {
+            if (pageText.trim().length < 10) continue
+            const normalized = pageText.replace(/\s{2,}/g, ' ').slice(0, 200)
+            rawTexts.push(`[Page] ${normalized}`)
+          }
+        }
+
+        if (fileLabels.length === 0) {
+          errors.push(`${file.name}: tidak ditemukan data penerima (${pages.length} halaman)`)
+          if (fullText.slice(0, 1)) rawTexts.push(`=== ${file.name} ===\n${fullText.substring(0, 1000)}`)
           continue
         }
 
-        for (const label of labels) {
-          if (!label.marketplace && marketplace) {
-            label.marketplace = marketplace
+        for (const label of fileLabels) {
+          if (!label.marketplace && globalMarketplace) {
+            label.marketplace = globalMarketplace
           }
           if (!label.marketplace) label.marketplace = 'TP'
 
