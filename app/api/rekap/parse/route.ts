@@ -1,6 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { parseLabelText, parseRecap, type PdfLabel } from '@/lib/rekap-parser'
 
+let pdfjsPromise: Promise<any> | null = null
+
+function getPdfjs() {
+  if (!pdfjsPromise) {
+    pdfjsPromise = import('pdfjs-dist/legacy/build/pdf.mjs').then(mod => {
+      mod.GlobalWorkerOptions.workerSrc = ''
+      return mod
+    })
+  }
+  return pdfjsPromise
+}
+
 function detectGlobalMarketplace(fullText: string): 'TP' | 'SP' | null {
   const lower = fullText.toLowerCase()
   const hasShopee = lower.includes('shopee')
@@ -12,28 +24,24 @@ function detectGlobalMarketplace(fullText: string): 'TP' | 'SP' | null {
 }
 
 async function extractPdfText(buffer: Buffer): Promise<string> {
-  const pdfParse = (await import('pdf-parse')).default
+  const pdfjs = await getPdfjs()
+  const data = new Uint8Array(buffer)
+  const doc = await pdfjs.getDocument({ data }).promise
 
-  const options = { max: 0 }
-
-  const mainData = await pdfParse(buffer, options)
-  const totalPages = mainData.numpages
-
-  let texts: string[] = []
-
-  if (totalPages <= 1) {
-    texts.push(mainData.text)
-  } else {
-    for (let page = 1; page <= totalPages; page++) {
-      const pageData = await pdfParse(buffer, { ...options, max: page })
-      texts.push(pageData.text)
-    }
+  const pages: string[] = []
+  for (let i = 1; i <= doc.numPages; i++) {
+    const page = await doc.getPage(i)
+    const textContent = await page.getTextContent()
+    const text = textContent.items
+      .map((item: any) => item.str)
+      .join(' ')
+    pages.push(text)
   }
 
-  return texts.join('\n')
+  return pages.join('\n')
 }
 
-function processText(fullText: string, globalMarketplace: 'TP' | 'SP' | null): PdfLabel[] {
+function processText(fullText: string): PdfLabel[] {
   const lines = fullText.split('\n').map(l => l.trim()).filter(Boolean)
 
   const penerimaIndices: number[] = []
@@ -119,8 +127,8 @@ export async function POST(request: NextRequest) {
         let fullText = ''
         try {
           fullText = await extractPdfText(buffer)
-        } catch {
-          errors.push(`${file.name}: gagal membaca PDF`)
+        } catch (err: any) {
+          errors.push(`${file.name}: gagal membaca PDF (${err.message ?? 'error'})`)
           continue
         }
 
@@ -130,7 +138,7 @@ export async function POST(request: NextRequest) {
         }
 
         const marketplace = detectGlobalMarketplace(fullText)
-        const labels = processText(fullText, marketplace)
+        const labels = processText(fullText)
 
         if (labels.length === 0) {
           errors.push(`${file.name}: tidak ditemukan data penerima`)
@@ -147,7 +155,7 @@ export async function POST(request: NextRequest) {
             allLabels.push(label)
           }
         }
-      } catch (err) {
+      } catch (err: any) {
         console.error(`Error processing ${file.name}:`, err)
         errors.push(`${file.name}: error server`)
       }
