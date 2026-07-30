@@ -51,7 +51,8 @@ function detectCourier(text: string): { name: string; short: string } | null {
   if (/^(?:NDD|EZ)$/i.test(fl)) return { name: 'J&T', short: 'J&T' }
   if (/^(?:ECO|STD)$/i.test(fl)) return { name: 'SPX', short: 'SPX' }
   if (/^(?:REG|SD)$/i.test(fl)) return { name: 'AnterAja', short: 'AA' }
-  if (/^(?:HOME|FastTrack)$/i.test(fl)) return { name: 'SPX', short: 'SPX' }
+  if (/^(?:HOME)$/i.test(fl)) return { name: 'SPX', short: 'SPX' }
+  if (/^(?:FastTrack)$/i.test(fl)) return { name: 'J&T', short: 'J&T' }
   if (/\bSAMEDAY\b/i.test(text)) return { name: 'AnterAja', short: 'AA' }
   if (/\bJY\d{8,}\b/.test(text)) return { name: 'J&T', short: 'J&T' }
   if (/\bTSA-?\d{8,}\b/.test(text)) return { name: 'SiCepat', short: 'SiCepat' }
@@ -136,38 +137,22 @@ export function parseLabelText(text: string): PdfLabel[] {
   const courier = detectCourier(joined)
   if (!courier) return []
 
+  const isCargo = /^(?:FastTrack)$/i.test(lines[0])
+
   const directNames = extractNamesFromPenerima(lines)
+
+  if (directNames.length === 0) return []
 
   let marketplace = detectMarketplace(joined)
   if (!marketplace && courier.short === 'SPX') marketplace = 'SP'
   if (!marketplace) marketplace = 'TP'
 
-  if (directNames.length > 0) {
-    return directNames.map(name => ({
-      courier: courier.name,
-      courierShort: courier.short,
-      recipientName: name,
-      marketplace,
-    }))
-  }
-
-  for (const line of lines) {
-    const nm = line.match(/\bNickName\s*:?\s*(.+)/i)
-    if (nm) {
-      const n = nm[1].trim().split(/[\n\r]/)[0].trim()
-      if (n && n.length >= 2 && n.length <= 60) {
-        return [{
-          courier: courier.name,
-          courierShort: courier.short,
-          recipientName: n,
-          marketplace,
-        }]
-      }
-    }
-  }
-
-  return []
-}
+  return directNames.map(name => ({
+    courier: courier.name,
+    courierShort: courier.short,
+    recipientName: isCargo ? `Cargo - ${name}` : name,
+    marketplace,
+  }))
 
 export function parseRecap(labels: PdfLabel[]): {
   groups: CourierGroup[]
