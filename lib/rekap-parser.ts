@@ -65,20 +65,22 @@ const SKIP_WORD = /^(toko|plastik|semesta|tokoplastik|tokoplastiksemesta|pengiri
 const ADDRESS_SUBSTR = ['gni', 'blora', 'jateng', 'perempatan', 'coblong', 'caringin', 'ciamis', 'bandung', 'jakarta', 'mampang', 'balaraja', 'bonjol', 'ciparay', 'pamokolan', 'cihaurbeuti', 'kartawijaya', 'prapatan', 'babakan', 'imam', 'induk', 'sera', 'mega', 'sebelah', 'disara', 'nomor']
 
 function isName(s: string): boolean {
-  const t = s.trim().toLowerCase()
+  const t = s.trim()
   if (!t || t.length < 2 || t.length > 60) return false
   if (/[:;=,：]/.test(t)) return false
   if (hasDigits(t, 3)) return false
   if (/^[\d\s.,()+\-/:;|：]+$/.test(t)) return false
+  if (/^[A-Z\s]{4,20}$/.test(t) && (t.match(/[A-Z]/g) || []).length >= 4) return false
 
-  const alphaCount = (t.match(/[a-z*]/gi) || []).length
+  const lower = t.toLowerCase()
+  const alphaCount = (lower.match(/[a-z*]/gi) || []).length
   if (alphaCount < 1) return false
 
   for (const kw of ADDRESS_SUBSTR) {
-    if (t.includes(kw)) return false
+    if (lower.includes(kw)) return false
   }
 
-  const tokens = t.split(/[\s：:=]+/)
+  const tokens = lower.split(/[\s：:=]+/)
   if (tokens.length >= 5) return false
 
   for (const tk of tokens) {
@@ -88,7 +90,7 @@ function isName(s: string): boolean {
   return true
 }
 
-function extractNames(lines: string[]): string[] {
+function extractNames(lines: string[], backwardFirst: boolean): string[] {
   const names: string[] = []
 
   for (let i = 0; i < lines.length; i++) {
@@ -102,6 +104,16 @@ function extractNames(lines: string[]): string[] {
     }
 
     let found = false
+
+    if (backwardFirst) {
+      for (let j = i - 1; j >= Math.max(0, i - 15); j--) {
+        const c = lines[j].trim()
+        if (!c) continue
+        if (isName(c)) { names.push(c); found = true; break }
+      }
+      if (found) continue
+    }
+
     for (let j = 1; j < 20; j++) {
       if (i + j >= lines.length) break
       const c = lines[i + j].trim()
@@ -133,7 +145,7 @@ export function parseLabelText(text: string): PdfLabel[] {
 
   const isCargo = /^(?:FastTrack)$/i.test(lines[0])
 
-  const directNames = extractNames(lines)
+  const directNames = extractNames(lines, isCargo)
   if (directNames.length === 0) return []
 
   let marketplace = detectMarketplace(joined)
