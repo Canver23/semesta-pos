@@ -3,7 +3,7 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import {
   ShoppingCart, LayoutDashboard, Package,
-  Users, FileText, Clock, BarChart2, Upload, CloudUpload, Menu, X, LogOut,
+  Users, FileText, Clock, BarChart2, Upload, CloudUpload, Menu, X, LogOut, ClipboardList,
 } from 'lucide-react'
 import { clsx } from 'clsx'
 import { useState, useEffect } from 'react'
@@ -19,6 +19,7 @@ const NAV = [
   { href: '/import',     label: 'Import',    icon: Upload          },
   { href: '/attendance', label: 'Absensi',   icon: Clock           },
   { href: '/migrate',    label: 'Migrasi',   icon: CloudUpload     },
+  { href: '/rekap',     label: 'Rekap',     icon: ClipboardList   },
 ]
 
 // Bottom nav items for mobile (5 most important)
