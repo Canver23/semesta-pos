@@ -15,19 +15,20 @@ const COURIERS: { name: string; short: string; patterns: RegExp[] }[] = [
 
 function normalizeLine(line: string): string {
   const tokens = line.split(/\s+/)
-  if (tokens.length < 4) return line
+  if (tokens.length < 3) return line
 
-  const totalLen = tokens.reduce((s, t) => s + t.length, 0)
+  const totalLen = tokens.reduce((s: number, t: string) => s + t.length, 0)
   const avg = totalLen / tokens.length
 
-  if (avg < 3) return tokens.join('')
+  if (avg < 3.5) return tokens.join('')
   return line
 }
 
 function detectCourier(text: string): { name: string; short: string } | null {
   const fl = text.split('\n')[0].trim()
-  if (/^(?:NDD|EZ)$/i.test(fl)) return { name: 'J&T', short: 'J&T' }
-  if (/^(?:ECO|STD)$/i.test(fl)) return { name: 'SPX', short: 'SPX' }
+
+  if (/^(?:NDD|EZ|ECO)$/i.test(fl)) return { name: 'J&T', short: 'J&T' }
+  if (/^(?:STD)$/i.test(fl)) return { name: 'SPX', short: 'SPX' }
   if (/^(?:REG|SD)$/i.test(fl)) return { name: 'AnterAja', short: 'AA' }
   if (/^(?:HOME)$/i.test(fl)) return { name: 'SPX', short: 'SPX' }
   if (/^(?:FastTrack)$/i.test(fl)) return { name: 'J&T', short: 'J&T' }
@@ -46,31 +47,33 @@ function detectCourier(text: string): { name: string; short: string } | null {
 }
 
 function detectMarketplace(text: string): 'TP' | 'SP' | null {
-  if (/TTOrderID|tt.order.id|ttorderid/i.test(text)) return 'TP'
-  if (/tiktokshop|tiktok shop/i.test(text)) return 'TP'
-  if (/\bNo\s*\.?\s*Pesanan\s*:/i.test(text)) return 'SP'
   if (/shopee/i.test(text)) return 'SP'
-  if (/tokopedia/i.test(text)) return 'TP'
-  if (/\bShip\s*:/i.test(text)) return 'TP'
-  return null
+  if (/\bNo\s*\.?\s*Pesanan\s*:/i.test(text)) return 'SP'
+  return 'TP'
 }
 
-function hasDigits(s: string, min: number = 6): boolean {
+function hasDigits(s: string, min: number = 5): boolean {
   return s.replace(/\D/g, '').length >= min
 }
 
-const SKIP = /^(TokoPlastikSemesta|Toko\s*Plastik\s*Semesta|Pengirim|Penerima|Jawa|Jalan|Jl|DKI|BANTEN|COD|CASHLESS|Weight|Ship|Order|Product|Print|No|Syarat|SKU|Qty|Nama|Berat|KOTA|KAB|RT|Dusun|Barang|Default|Batas|Nick|Pasar|Kompleks|Penjual|Ruko|CHEFFY|Polynet|Tali|CASHLESS|BATAS|GRADE|STRETCH|FILM|WRAP|WRAPPING|PEMBUNGKUS|MAKANAN|MET|ROLL|NDD|ECO|REG|STD|EZ|HOME|SD|COD|SAMEDAY|FastTrack|EstimatedDate|Jumlah|Weight|Ship|QtyTotal|TTOrderID|NoResi|NickName|OrderID|ProductName|Intransitby|Berat|BatasKirim|No\.Pesanan|Pamokolan|Cihaurbeuti|CIAMIS|BANDUNG|JAKARTA|MAMPANG|PRAPATAN|BALARAJA|Ciparay|Induk|Caringin|Coblong|imam|bonjol|perempatan|GNI|blora|jaten|Kartawijaya|Teluk|Warung|Naga|Shasa|Salad|Garuda)\b/i
-
-const SKIP_CONTAINS = /(?:PLASTIC|FOOD|GRADE|METER|ROLL|POLYNET|WARING|RAMBANG|JARING|BUAH|PANJANG|RAFIA|GALAKSI|IKAT|KUAT|TEBAL|SERBAGUNA|STRETCH|PLASTIK|FILM|PEMBUNGKUS|MAKANAN|CHEFFY|TALI|POLYNET|CM\s*[Xx]|MET(?:ER|RE)?\b|[Kk][Gg]\b|[Gg][Rr]\b|[Pp][Cc][Ss]\b)/i
+const SKIP_WORD = /^(toko|plastik|semesta|pengirim|penerima|jawa|jalan|jl|dki|banten|cod|cashless|weight|ship|order|product|print|no|syarat|sku|qty|nama|berat|kota|kab|rt|dusun|barang|default|batas|nick|pasar|kompleks|penjual|ruko|ndd|eco|reg|std|ez|home|sd|sameday|fasttrack|jnt|anteraja|sicepat|spx|jne|ninja|pos|tali|polynet|cheffy|plastik|wrapping|kuning|hitam|putih|merah|biru|hijau|abu|pcs|bal|pack|lembar|toros|kg|gram|food|grade|meter|roll|cm|mm|metre|metre|strerch|film|wrapping|pembungkus|makanan|waring|rambang|jaring|buah|panjang|rafia|galaksi|ikat|kuat|tebal|serbaguna|teluk|warung|naga|shasa|salad|garuda)$/i
 
 function isName(s: string): boolean {
-  const t = s.trim()
+  const t = s.trim().toLowerCase()
   if (!t || t.length < 2 || t.length > 60) return false
-  if (/^[\s\d.,()+\-*/:;|]+$/.test(t)) return false
-  if (hasDigits(t)) return false
-  if (SKIP.test(t)) return false
-  if (SKIP_CONTAINS.test(t)) return false
-  if (/^\d+[\s/]*(gr|kg|pcs|g|roll|meter|cm|mm|KG)/i.test(t)) return false
+  if (hasDigits(t, 4)) return false
+  if (/^[\d\s.,()+\-*/:;|]+$/.test(t)) return false
+  if (/^\d+[\s/]*(gr|kg|pcs|g|roll|meter|cm|mm)\b/i.test(t)) return false
+
+  const tokens = t.split(/\s+/)
+  if (tokens.length >= 4 && tokens.every(tk => tk.length <= 3)) return false
+
+  for (const tk of tokens) {
+    if (SKIP_WORD.test(tk)) return false
+  }
+
+  if (t.match(/[a-z]/g) && (t.match(/[a-z]/g)?.length ?? 0) < 2) return false
+
   return true
 }
 
@@ -87,13 +90,11 @@ function extractNames(lines: string[]): string[] {
       if (isName(val)) { names.push(val); continue }
     }
 
-    for (let j = 1; j < 30; j++) {
-      if (i + j < lines.length) {
-        const c = lines[i + j].trim()
-        if (!c) continue
-        if (hasDigits(c)) continue
-        if (isName(c)) { names.push(c); break }
-      }
+    for (let j = 1; j < 15; j++) {
+      if (i + j >= lines.length) break
+      const c = lines[i + j].trim()
+      if (!c) continue
+      if (isName(c)) { names.push(c); break }
     }
   }
 
@@ -116,8 +117,6 @@ export function parseLabelText(text: string): PdfLabel[] {
   if (directNames.length === 0) return []
 
   let marketplace = detectMarketplace(joined)
-  if (!marketplace && courier.short === 'SPX') marketplace = 'SP'
-  if (!marketplace) marketplace = 'TP'
 
   return directNames.map(name => ({
     courier: courier.name,
