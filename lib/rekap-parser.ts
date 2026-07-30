@@ -14,10 +14,13 @@ const COURIERS: { name: string; short: string; patterns: RegExp[] }[] = [
 ]
 
 function normalizeLine(line: string): string {
-  const parts = line.split(/\s+/)
-  if (parts.length >= 4 && parts.every(p => p.length <= 3)) {
-    return parts.join('')
-  }
+  const tokens = line.split(/\s+/)
+  if (tokens.length < 4) return line
+
+  const totalLen = tokens.reduce((s, t) => s + t.length, 0)
+  const avg = totalLen / tokens.length
+
+  if (avg < 3) return tokens.join('')
   return line
 }
 
