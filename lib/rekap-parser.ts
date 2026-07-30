@@ -82,9 +82,6 @@ function isName(s: string): boolean {
   return true
 }
 
-  return true
-}
-
 function extractNames(lines: string[]): string[] {
   const names: string[] = []
 
