@@ -16,6 +16,8 @@ export default function RekapPage() {
   const [summary, setSummary] = useState<Summary | null>(null)
   const [totalLabels, setTotalLabels] = useState(0)
   const [copied, setCopied] = useState(false)
+  const [rawText, setRawText] = useState('')
+  const [showRaw, setShowRaw] = useState(false)
 
   const handleAddFiles = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const newFiles = Array.from(e.target.files || [])
@@ -172,6 +174,18 @@ export default function RekapPage() {
                   <ul className="text-xs text-red-400 list-disc list-inside">
                     {fileErrors.map((e, i) => <li key={i}>{e}</li>)}
                   </ul>
+                </div>
+              )}
+              {rawText && (
+                <div className="mt-3">
+                  <button onClick={() => setShowRaw(!showRaw)} className="text-xs text-red-500 underline">
+                    {showRaw ? 'Sembunyikan' : 'Lihat'} raw text dari PDF
+                  </button>
+                  {showRaw && (
+                    <pre className="mt-2 text-xs text-red-600 bg-red-100 p-3 rounded-lg max-h-60 overflow-auto whitespace-pre-wrap">
+                      {rawText}
+                    </pre>
+                  )}
                 </div>
               )}
             </div>

@@ -31,12 +31,13 @@ async function extractPdfText(buffer: Buffer): Promise<string> {
     let lastY = -1
 
     for (const item of textContent.items) {
-      const y = item.transform?.[5] ?? 0
+      const textItem = item as any
+      const y = textItem.transform?.[5] ?? 0
       if (lastY !== -1 && Math.abs(y - lastY) > 3) {
         if (currentLine) lines.push(currentLine.trim())
         currentLine = ''
       }
-      currentLine += item.str
+      currentLine += textItem.str
       lastY = y
     }
     if (currentLine) lines.push(currentLine.trim())
