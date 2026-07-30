@@ -45,7 +45,7 @@ function detectMarketplace(text: string): 'TP' | 'SP' | null {
 }
 
 const RECIPIENT_PATTERNS = [
-  /Penerima\s*:?\s*(.+)/i,
+  /\bPenerima\s*:?\s*(.+)/i,
   /(?:nama\s*penerima|kepada|ditujukan\s*kepada|recipient|buyer|tujuan)\s*[:\s]+(.+)/i,
   /(?:Nama|To)\s*[:\s]+(.+)/,
 ]
@@ -57,8 +57,8 @@ function extractRecipientName(text: string): string | null {
       let name = match[1].trim()
       name = name.split(/[\n\r,]/)[0].trim()
       name = name.replace(/\s{2,}/g, ' ')
-      name = name.replace(/[^\w\s.']/g, '').trim()
-      if (name.length >= 3 && name.length <= 60 && /[a-zA-Z]/i.test(name)) {
+      name = name.replace(/[^\w\s.'*]/g, '').trim()
+      if (name.length >= 2 && name.length <= 60) {
         return name
       }
     }
