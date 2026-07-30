@@ -27,7 +27,11 @@ function normalizeLine(line: string): string {
 function detectCourier(text: string): { name: string; short: string } | null {
   const fl = text.split('\n')[0].trim()
 
-  if (/^(?:NDD|EZ|ECO)$/i.test(fl)) return { name: 'J&T', short: 'J&T' }
+  if (/^(?:NDD|EZ)$/i.test(fl)) return { name: 'J&T', short: 'J&T' }
+  if (/^(?:ECO)$/i.test(fl)) {
+    if (/\bNo\s*\.?\s*Pesanan\s*:/i.test(text) || /shopee/i.test(text)) return { name: 'SPX', short: 'SPX' }
+    return { name: 'J&T', short: 'J&T' }
+  }
   if (/^(?:STD)$/i.test(fl)) return { name: 'SPX', short: 'SPX' }
   if (/^(?:REG|SD)$/i.test(fl)) return { name: 'AnterAja', short: 'AA' }
   if (/^(?:HOME)$/i.test(fl)) return { name: 'SPX', short: 'SPX' }

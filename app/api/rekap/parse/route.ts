@@ -122,9 +122,7 @@ export async function POST(request: NextRequest) {
           }
           if (!label.marketplace) label.marketplace = 'TP'
 
-          if (!allLabels.some(l => isDuplicateLabel(l, label))) {
-            allLabels.push(label)
-          }
+          allLabels.push(label)
         }
       } catch (err: any) {
         console.error(`Error processing ${file.name}:`, err)
