@@ -60,17 +60,17 @@ function hasDigits(s: string, min: number = 5): boolean {
   return s.replace(/\D/g, '').length >= min
 }
 
-const SKIP_WORD = /^(toko|plastik|semesta|pengirim|penerima|jawa|jalan|jl|dki|banten|cod|cashless|weight|ship|order|product|print|no|syarat|sku|qty|nama|berat|kota|kab|rt|dusun|barang|default|batas|nick|pasar|kompleks|penjual|ruko|ndd|eco|reg|std|ez|home|sd|sameday|fasttrack|jnt|anteraja|sicepat|spx|jne|ninja|pos|tali|polynet|cheffy|plastik|wrapping|kuning|hitam|putih|merah|biru|hijau|abu|pcs|bal|pack|lembar|toros|kg|gram|food|grade|meter|roll|cm|mm|metre|metre|strerch|film|wrapping|pembungkus|makanan|waring|rambang|jaring|buah|panjang|rafia|galaksi|ikat|kuat|tebal|serbaguna|teluk|warung|naga|shasa|salad|garuda)$/i
+const SKIP_WORD = /^(toko|plastik|semesta|tokoplastik|tokoplastiksemesta|pengirim|penerima|jawa|jalan|jl|dki|banten|cod|cashless|weight|ship|order|product|print|no|syarat|sku|qty|nama|berat|kota|kab|rt|dusun|barang|default|batas|nick|pasar|kompleks|penjual|ruko|ndd|eco|reg|std|ez|home|sd|sameday|fasttrack|jnt|anteraja|sicepat|spx|jne|ninja|pos|tali|polynet|cheffy|plastik|wrapping|kuning|hitam|putih|merah|biru|hijau|abu|pcs|bal|pack|lembar|toros|kg|gram|food|grade|meter|roll|cm|mm|metre|metre|strerch|film|wrapping|pembungkus|makanan|waring|rambang|jaring|buah|panjang|rafia|galaksi|ikat|kuat|tebal|serbaguna|teluk|warung|naga|shasa|salad|garuda)$/i
 
 function isName(s: string): boolean {
-  const t = s.trim()
+  const t = s.trim().toLowerCase()
   if (!t || t.length < 2 || t.length > 60) return false
   if (/[:;=,]/.test(t)) return false
   if (hasDigits(t, 3)) return false
   if (/^[\d\s.,()+\-/:;|]+$/.test(t)) return false
 
-  const alpha = t.replace(/[^a-z*]/gi, '').length
-  if (alpha < 1) return false
+  const alphaCount = (t.match(/[a-z*]/gi) || []).length
+  if (alphaCount < 1) return false
 
   const tokens = t.split(/\s+/)
   if (tokens.length >= 5) return false
@@ -78,6 +78,9 @@ function isName(s: string): boolean {
   for (const tk of tokens) {
     if (SKIP_WORD.test(tk)) return false
   }
+
+  return true
+}
 
   return true
 }
@@ -95,11 +98,20 @@ function extractNames(lines: string[]): string[] {
       if (isName(val)) { names.push(val); continue }
     }
 
+    let found = false
     for (let j = 1; j < 15; j++) {
       if (i + j >= lines.length) break
       const c = lines[i + j].trim()
       if (!c) continue
-      if (isName(c)) { names.push(c); break }
+      if (isName(c)) { names.push(c); found = true; break }
+    }
+
+    if (!found) {
+      for (let j = i - 1; j >= 0 && j >= i - 10; j--) {
+        const c = lines[j].trim()
+        if (!c) continue
+        if (isName(c)) { names.push(c); break }
+      }
     }
   }
 
