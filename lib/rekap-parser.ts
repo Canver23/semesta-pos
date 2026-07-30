@@ -17,6 +17,8 @@ function normalizeLine(line: string): string {
   const tokens = line.split(/\s+/)
   if (tokens.length < 3) return line
 
+  if (/[:;,.\d]/.test(line)) return line
+
   const totalLen = tokens.reduce((s: number, t: string) => s + t.length, 0)
   const avg = totalLen / tokens.length
 
@@ -65,18 +67,17 @@ const SKIP_WORD = /^(toko|plastik|semesta|pengirim|penerima|jawa|jalan|jl|dki|ba
 function isName(s: string): boolean {
   const t = s.trim().toLowerCase()
   if (!t || t.length < 2 || t.length > 60) return false
-  if (hasDigits(t, 4)) return false
+  if (/[:;=]/.test(t)) return false
+  if (hasDigits(t, 3)) return false
   if (/^[\d\s.,()+\-*/:;|]+$/.test(t)) return false
-  if (/^\d+[\s/]*(gr|kg|pcs|g|roll|meter|cm|mm)\b/i.test(t)) return false
+  if (/[a-z]/i.test(t) && t.replace(/[^a-z]/gi, '').length < 2) return false
 
   const tokens = t.split(/\s+/)
-  if (tokens.length >= 4 && tokens.every(tk => tk.length <= 3)) return false
+  if (tokens.length >= 5) return false
 
   for (const tk of tokens) {
     if (SKIP_WORD.test(tk)) return false
   }
-
-  if (t.match(/[a-z]/g) && (t.match(/[a-z]/g)?.length ?? 0) < 2) return false
 
   return true
 }
