@@ -65,14 +65,14 @@ const SKIP_WORD = /^(toko|plastik|semesta|tokoplastik|tokoplastiksemesta|pengiri
 function isName(s: string): boolean {
   const t = s.trim().toLowerCase()
   if (!t || t.length < 2 || t.length > 60) return false
-  if (/[:;=,]/.test(t)) return false
+  if (/[:;=,：]/.test(t)) return false
   if (hasDigits(t, 3)) return false
-  if (/^[\d\s.,()+\-/:;|]+$/.test(t)) return false
+  if (/^[\d\s.,()+\-/:;|：]+$/.test(t)) return false
 
   const alphaCount = (t.match(/[a-z*]/gi) || []).length
   if (alphaCount < 1) return false
 
-  const tokens = t.split(/\s+/)
+  const tokens = t.split(/[\s：:=]+/)
   if (tokens.length >= 5) return false
 
   for (const tk of tokens) {
@@ -104,7 +104,7 @@ function extractNames(lines: string[]): string[] {
     }
 
     if (!found) {
-      for (let j = i - 1; j >= 0 && j >= i - 10; j--) {
+      for (let j = i - 1; j >= Math.max(0, i - 10); j--) {
         const c = lines[j].trim()
         if (!c) continue
         if (isName(c)) { names.push(c); break }
