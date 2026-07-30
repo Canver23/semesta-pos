@@ -153,6 +153,7 @@ export function parseLabelText(text: string): PdfLabel[] {
     recipientName: isCargo ? `Cargo - ${name}` : name,
     marketplace,
   }))
+}
 
 export function parseRecap(labels: PdfLabel[]): {
   groups: CourierGroup[]
