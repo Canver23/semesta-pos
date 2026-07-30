@@ -1,20 +1,6 @@
-export interface RecipientEntry {
-  name: string
-  marketplace: 'TP' | 'SP'
-}
-
-export interface CourierGroup {
-  courier: string
-  short: string
-  recipients: RecipientEntry[]
-}
-
-export interface PdfLabel {
-  courier: string
-  courierShort: string
-  recipientName: string
-  marketplace: 'TP' | 'SP' | null
-}
+export interface RecipientEntry { name: string; marketplace: 'TP' | 'SP' }
+export interface CourierGroup { courier: string; short: string; recipients: RecipientEntry[] }
+export interface PdfLabel { courier: string; courierShort: string; recipientName: string; marketplace: 'TP' | 'SP' | null }
 
 const COURIERS: { name: string; short: string; patterns: RegExp[] }[] = [
   { name: 'AnterAja', short: 'AA', patterns: [/anteraja/i] },
@@ -27,20 +13,49 @@ const COURIERS: { name: string; short: string; patterns: RegExp[] }[] = [
   { name: 'Ninja', short: 'Ninja', patterns: [/ninjavan/i] },
 ]
 
-function normalizeSpacedText(line: string): string {
-  return line.replace(
-    /\b([A-Za-z*])(\s+[A-Za-z*0-9]){2,}\b/g,
-    m => m.replace(/\s+/g, '')
-  )
+function fixSpacedWords(text: string): string {
+  const pairs: [RegExp, string][] = [
+    [/\bP\s+e\s+n\s+g\s+i\s+r\s+i\s+m\b/gi, 'Pengirim'],
+    [/\bP\s+e\s+n\s+e\s+r\s+i\s+m\s+a\b/gi, 'Penerima'],
+    [/\bT\s+o\s+k\s+o\s+P\s+l\s+a\s+s\s+t\s+i\s+k\s+S\s+e\s+m\s+e\s+s\s+t\s+a\b/gi, 'TokoPlastikSemesta'],
+    [/\bN\s+i\s+c\s+k\s+N\s+a\s+m\s+e\b/gi, 'NickName'],
+    [/\bN\s+o\s*\.\s*\s*P\s+e\s+s\s+a\s+n\s+a\s+n\b/gi, 'No.Pesanan'],
+    [/\bN\s+o\s*\.\s*\s*R\s+e\s+s\s+i\b/gi, 'No.Resi'],
+    [/\bO\s+r\s+d\s+e\s+r\s*I\s*[Dd]\b/gi, 'OrderID'],
+    [/\bP\s+r\s+o\s+d\s+u\s+c\s+t\s+N\s+a\s+m\s+e\b/gi, 'ProductName'],
+    [/\bP\s+r\s+i\s+n\s+t\s+T\s+i\s+m\s+e\b/gi, 'PrintTime'],
+    [/\bC\s+A\s+S\s+H\s+L\s+E\s+S\s+S\b/gi, 'CASHLESS'],
+    [/\bS\s+A\s+M\s+E\s+D\s+A\s+Y\b/gi, 'SAMEDAY'],
+    [/\bF\s+a\s+s\s+t\s+T\s+r\s+a\s+c\s+k\b/gi, 'FastTrack'],
+    [/\bW\s+e\s+i\s+g\s+h\s+t\b/gi, 'Weight'],
+    [/\bS\s+h\s+i\s+p\b/gi, 'Ship'],
+    [/\bS\s+K\s+U\b/gi, 'SKU'],
+    [/\bQ\s+t\s+y\b/gi, 'Qty'],
+    [/\bR\s+E\s+G\b/gi, 'REG'],
+    [/\bE\s+C\s+O\b/gi, 'ECO'],
+    [/\bN\s+D\s+D\b/gi, 'NDD'],
+    [/\bE\s+Z\b/gi, 'EZ'],
+    [/\bS\s+T\s+D\b/gi, 'STD'],
+    [/\bS\s+D\b/gi, 'SD'],
+    [/\bH\s+O\s+M\s+E\b/gi, 'HOME'],
+    [/\bC\s+O\s+D\b/gi, 'COD'],
+    [/\bT\s+T\s+O\s+r\s+d\s+e\s+r\s*I\s*[Dd]\b/gi, 'TTOrderID'],
+  ]
+  let r = text
+  for (const [rx, rep] of pairs) r = r.replace(rx, rep)
+  return r
 }
 
 function detectCourier(text: string): { name: string; short: string } | null {
+  const fl = text.split('\n')[0].trim()
+  if (/^(?:NDD|EZ)$/i.test(fl)) return { name: 'J&T', short: 'J&T' }
+  if (/^(?:ECO|STD)$/i.test(fl)) return { name: 'SPX', short: 'SPX' }
+  if (/^(?:REG|SD)$/i.test(fl)) return { name: 'AnterAja', short: 'AA' }
+  if (/^(?:HOME|FastTrack)$/i.test(fl)) return { name: 'SPX', short: 'SPX' }
+  if (/\bSAMEDAY\b/i.test(text)) return { name: 'AnterAja', short: 'AA' }
   if (/\bJY\d{8,}\b/.test(text)) return { name: 'J&T', short: 'J&T' }
   if (/\bTSA-?\d{8,}\b/.test(text)) return { name: 'SiCepat', short: 'SiCepat' }
-  if (/^(?:NDD|ECO)$/m.test(text)) return { name: 'J&T', short: 'J&T' }
-  if (/^(?:REG|HOME|FastTrack)$/m.test(text)) return { name: 'SPX', short: 'SPX' }
-  if (/^(?:SD)$/m.test(text)) return { name: 'SiCepat', short: 'SiCepat' }
-  if (/CASHLESS|No\.?\s*Resi\s*:?\s*\d{12,}|anteraja/i.test(text)) return { name: 'AnterAja', short: 'AA' }
+  if (/CASHLESS|No\.?\s*Resi\s*:?\s*\d{12,}/i.test(text)) return { name: 'AnterAja', short: 'AA' }
   if (/spexpress|spx|shopee express/i.test(text)) return { name: 'SPX', short: 'SPX' }
   if (/jet\.co\.id|\bjnt\b|j&t/i.test(text)) return { name: 'J&T', short: 'J&T' }
   if (/sicepat|si cepat/i.test(text)) return { name: 'SiCepat', short: 'SiCepat' }
@@ -52,28 +67,41 @@ function detectCourier(text: string): { name: string; short: string } | null {
 }
 
 function detectMarketplace(text: string): 'TP' | 'SP' | null {
-  if (/TT\s*Order\s*ID/i.test(text)) return 'TP'
+  if (/TTOrderID/i.test(text)) return 'TP'
   if (/tiktokshop|tiktok shop/i.test(text.toLowerCase())) return 'TP'
-  if (/No\.\s*Pesanan\s*:/i.test(text)) return 'SP'
+  if (/No\.Pesanan\s*:/i.test(text)) return 'SP'
   if (/shopee/i.test(text.toLowerCase())) return 'SP'
   if (/tokopedia/i.test(text.toLowerCase())) return 'TP'
-  if (/Ship\s*:|Order\s*Id\s*:|jet\.co\.id/i.test(text)) return 'TP'
+  if (/Ship\s*:/i.test(text)) return 'TP'
   return null
 }
 
-function looksLikeName(s: string): boolean {
+function hasDigits(s: string, min: number = 6): boolean {
+  const d = s.replace(/\D/g, '')
+  return d.length >= min
+}
+
+function looksLikePhone(s: string): boolean {
+  const d = s.replace(/[()+\-.\s]/g, '')
+  if (/^62\d{6,}$/.test(d)) return true
+  if (/^\d{7,}$/.test(d)) return true
+  return false
+}
+
+const SKIP = /^(TokoPlastikSemesta|Pengirim|Penerima|Jawa|Jalan|Jl|DKI|BANTEN|COD|CASHLESS|Weight|Ship|Order|Product|Print|No|Syarat|SKU|Qty|Nama|Berat|KOTA|KAB|RT|Dusun|Barang|Default|Batas|Nick|Pasar|Kompleks|Penjual|Ruko|CHEFFY|Polynet|Tali|CASHLESS|BATAS|GRADE|STRETCH|FILM|WRAP|WRAPPING|PEMBUNGKUS|MAKANAN|MET|ROLL|NDD|ECO|REG|STD|EZ|HOME|SD|COD|SAMEDAY|FastTrack|EstimatedDate|Jumlah|Weight|Ship|QtyTotal|TTOrderID|NoResi|NickName|OrderID|ProductName|Intransitby|Berat|BatasKirim|No\.Pesanan|Pamokolan|Cihaurbeuti|CIAMIS|BANDUNG|JAKARTA|MAMPANG|PRAPATAN|BALARAJA|Ciparay|Induk|Caringin|Coblong|imam|bonjol|perempatan|GNI|blora|jaten|Kartawijaya|Teluk|Warung|Naga|Shasa|Salad|Garuda)\b/i
+
+function isName(s: string): boolean {
   const t = s.trim()
   if (!t || t.length < 2 || t.length > 60) return false
-  if (/^[\d\s.,+-]+$/.test(t)) return false
-  if (/^\+?62\d{6,}$/.test(t)) return false
-  if (/^\d{6,}$/.test(t)) return false
-  if (/^(?:Toko|Plastik|Semesta|Pengirim|Penerima|Jawa|Jalan|Jl|DKI|BANTEN|COD|CASHLESS|Weight|Ship|Order|Product|Print|No|Syarat|SKU|Qty|Nama|Berat|KOTA|KAB|RT|Dusun|Barang|Default|Batas|Nick|Pasar|Kompleks|Penjual|Ruko|CHEFFY|Polynet|Tali|Estimated|CASHLESS|BATAS|GRADE|STRETCH|FILM|WRAP|WRAPPING|PEMBUNGKUS|MAKANAN|MET|ROLL)\b/i.test(t)) return false
-  if (/^(?:Kuning|Hitam|Pcs|Bal|Pack|Lembar|Toros|Kg|Gram|FOOD|Plastik|CM)\b/i.test(t)) return false
-  if (/^\d.*(?:gr|kg|pcs|g|KG|GR|Pcs|Gram|gram)$/i.test(t)) return false
+  if (/^[\s\d.,()+\-*/:;]+$/.test(t)) return false
+  if (looksLikePhone(t)) return false
+  if (hasDigits(t)) return false
+  if (SKIP.test(t)) return false
+  if (/^\d+[\s/]*(gr|kg|pcs|g|roll|meter|cm|mm|KG)/i.test(t)) return false
   return true
 }
 
-function extractNames(lines: string[]): string[] {
+function extractNamesFromPenerima(lines: string[]): string[] {
   const names: string[] = []
 
   for (let i = 0; i < lines.length; i++) {
@@ -83,36 +111,14 @@ function extractNames(lines: string[]): string[] {
     const m = line.match(/^Penerima\s*:?\s*(.+)/i)
     if (m?.[1]) {
       const val = m[1].trim()
-      if (looksLikeName(val) && !/toko/i.test(val)) { names.push(val); continue }
+      if (isName(val) && !/toko/i.test(val)) { names.push(val); continue }
     }
 
     for (let j = 1; j < 30; j++) {
       if (i + j < lines.length) {
         const c = lines[i + j].trim()
-        if (!c || /^\+?62\d{6,}/.test(c) || /^\d{6,}$/.test(c)) continue
-        if (looksLikeName(c)) { names.push(c); break }
-      }
-    }
-
-    let alreadyFoundDown = names.length > 0
-    for (let j = i - 1; j >= 0 && j >= i - 10; j--) {
-      const c = lines[j].trim()
-      if (!c || /^\+?62\d{6,}/.test(c) || /^\d{6,}$/.test(c)) continue
-      if (looksLikeName(c)) {
-        if (!alreadyFoundDown) names.push(c)
-        break
-      }
-    }
-  }
-
-  for (const line of lines) {
-    const nm = line.match(/\bNickName\s*:?\s*(.+)/i)
-    if (nm) {
-      const n = nm[1].trim().split(/[\n\r]/)[0].trim()
-      if (n && n.length >= 2 && n.length <= 60) {
-        if (!names.some(existing => existing.toLowerCase() === n.toLowerCase())) {
-          names.push(n)
-        }
+        if (!c || looksLikePhone(c)) continue
+        if (isName(c)) { names.push(c); break }
       }
     }
   }
@@ -121,28 +127,46 @@ function extractNames(lines: string[]): string[] {
 }
 
 export function parseLabelText(text: string): PdfLabel[] {
-  let lines = text.split('\n').map(l => l.trim()).filter(Boolean)
-  if (lines.length < 3) return []
+  const rawLines = text.split('\n').map(l => l.trim()).filter(Boolean)
+  if (rawLines.length < 3) return []
 
-  lines = lines.map(normalizeSpacedText)
+  const lines = rawLines.map(fixSpacedWords)
   const joined = lines.join('\n')
 
   const courier = detectCourier(joined)
   if (!courier) return []
 
-  const names = extractNames(lines)
-  if (names.length === 0) return []
+  const directNames = extractNamesFromPenerima(lines)
 
   let marketplace = detectMarketplace(joined)
   if (!marketplace && courier.short === 'SPX') marketplace = 'SP'
   if (!marketplace) marketplace = 'TP'
 
-  return names.map(name => ({
-    courier: courier.name,
-    courierShort: courier.short,
-    recipientName: name,
-    marketplace,
-  }))
+  if (directNames.length > 0) {
+    return directNames.map(name => ({
+      courier: courier.name,
+      courierShort: courier.short,
+      recipientName: name,
+      marketplace,
+    }))
+  }
+
+  for (const line of lines) {
+    const nm = line.match(/\bNickName\s*:?\s*(.+)/i)
+    if (nm) {
+      const n = nm[1].trim().split(/[\n\r]/)[0].trim()
+      if (n && n.length >= 2 && n.length <= 60) {
+        return [{
+          courier: courier.name,
+          courierShort: courier.short,
+          recipientName: n,
+          marketplace,
+        }]
+      }
+    }
+  }
+
+  return []
 }
 
 export function parseRecap(labels: PdfLabel[]): {
@@ -150,38 +174,24 @@ export function parseRecap(labels: PdfLabel[]): {
   summary: { TP: number; SP: number; total: number }
 } {
   const map = new Map<string, RecipientEntry[]>()
-
   for (const label of labels) {
     const key = label.courierShort
     if (!map.has(key)) map.set(key, [])
-    const mp = label.marketplace || 'TP'
-    map.get(key)!.push({ name: label.recipientName, marketplace: mp })
+    map.get(key)!.push({ name: label.recipientName, marketplace: label.marketplace || 'TP' })
   }
 
   const order = ['AA', 'J&T', 'SPX', 'SiCepat', 'JNE', 'Pos', 'IDX', 'Ninja']
   const groups: CourierGroup[] = []
-
   for (const short of order) {
     const recipients = map.get(short)
-    if (recipients && recipients.length > 0) {
-      const courier = COURIERS.find(c => c.short === short)
-      groups.push({ courier: courier?.name ?? short, short, recipients })
+    if (recipients?.length) {
+      groups.push({ courier: COURIERS.find(c => c.short === short)?.name ?? short, short, recipients })
       map.delete(short)
     }
   }
+  for (const [short, recipients] of map) groups.push({ courier: short, short, recipients })
 
-  for (const [short, recipients] of map) {
-    groups.push({ courier: short, short, recipients })
-  }
-
-  let TP = 0
-  let SP = 0
-  for (const g of groups) {
-    for (const r of g.recipients) {
-      if (r.marketplace === 'TP') TP++
-      else SP++
-    }
-  }
-
+  let TP = 0, SP = 0
+  for (const g of groups) for (const r of g.recipients) { if (r.marketplace === 'TP') TP++; else SP++ }
   return { groups, summary: { TP, SP, total: TP + SP } }
 }
