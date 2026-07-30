@@ -60,7 +60,7 @@ function hasDigits(s: string, min: number = 5): boolean {
   return s.replace(/\D/g, '').length >= min
 }
 
-const SKIP_WORD = /^(toko|plastik|semesta|tokoplastik|tokoplastiksemesta|pengirim|penerima|jawa|jalan|jl|dki|banten|cod|cashless|weight|ship|order|product|print|no|syarat|sku|qty|nama|berat|kota|kab|rt|dusun|barang|default|batas|nick|pasar|kompleks|penjual|ruko|ndd|eco|reg|std|ez|home|sd|sameday|fasttrack|jnt|anteraja|sicepat|spx|jne|ninja|pos|tali|polynet|cheffy|plastik|wrapping|kuning|hitam|putih|merah|biru|hijau|abu|pcs|bal|pack|lembar|toros|kg|gram|food|grade|meter|roll|cm|mm|metre|metre|strerch|film|wrapping|pembungkus|makanan|waring|rambang|jaring|buah|panjang|rafia|galaksi|ikat|kuat|tebal|serbaguna|teluk|warung|naga|shasa|salad|garuda)$/i
+const SKIP_WORD = /^(toko|plastik|semesta|tokoplastik|tokoplastiksemesta|pengirim|penerima|jawa|jalan|jl|dki|banten|cod|cashless|weight|ship|order|product|print|no|syarat|sku|qty|nama|berat|kota|kab|rt|dusun|barang|default|batas|nick|pasar|kompleks|penjual|ruko|ndd|eco|reg|std|ez|home|sd|sameday|fasttrack|jnt|anteraja|sicepat|spx|jne|ninja|pos|tali|polynet|cheffy|plastik|wrapping|kuning|hitam|putih|merah|biru|hijau|abu|pcs|bal|pack|lembar|toros|kg|gram|food|grade|meter|roll|cm|mm|metre|strerch|film|pembungkus|makanan|waring|rambang|jaring|buah|panjang|rafia|galaksi|ikat|kuat|tebal|serbaguna|teluk|warung|naga|shasa|salad|garuda|perempatan|gniblorajateng|gni|blora|jateng|sebelah|bank|mega|disara|coblong|imam|bonjol|sera|induk|caringin|ciparay|babakan|pamokolan|cihaurbeuti|ciamis|bandung|jakarta|mampang|prapatan|balaraja|kartawijaya|nomor|plastik|wrapping|stretch|grade|food)$/i
 
 function isName(s: string): boolean {
   const t = s.trim().toLowerCase()
@@ -82,7 +82,7 @@ function isName(s: string): boolean {
   return true
 }
 
-function extractNames(lines: string[]): string[] {
+function extractNames(lines: string[], cargoOnly: boolean): string[] {
   const names: string[] = []
 
   for (let i = 0; i < lines.length; i++) {
@@ -93,6 +93,15 @@ function extractNames(lines: string[]): string[] {
     if (m?.[1]) {
       const val = m[1].trim()
       if (isName(val)) { names.push(val); continue }
+    }
+
+    if (cargoOnly) {
+      for (let j = i - 1; j >= Math.max(0, i - 20); j--) {
+        const c = lines[j].trim()
+        if (!c) continue
+        if (isName(c)) { names.push(c); break }
+      }
+      continue
     }
 
     let found = false
@@ -127,7 +136,7 @@ export function parseLabelText(text: string): PdfLabel[] {
 
   const isCargo = /^(?:FastTrack)$/i.test(lines[0])
 
-  const directNames = extractNames(lines)
+  const directNames = extractNames(lines, isCargo)
   if (directNames.length === 0) return []
 
   let marketplace = detectMarketplace(joined)
