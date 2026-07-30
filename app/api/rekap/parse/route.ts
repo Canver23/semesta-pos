@@ -5,7 +5,7 @@ function detectGlobalMarketplace(fullText: string): 'TP' | 'SP' | null {
   const lower = fullText.toLowerCase()
   const hasShopee = lower.includes('shopee')
   const hasTP = lower.includes('tokopedia') || lower.includes('tiktokshop') || lower.includes('tiktok shop')
-    || /TT\s*Order\s*ID/i.test(fullText)
+    || /tt\s*o\s*r\s*d\s*e\s*r\s*i\s*d/i.test(fullText)
 
   if (hasShopee && !hasTP) return 'SP'
   if (!hasShopee && hasTP) return 'TP'
@@ -43,7 +43,8 @@ async function extractPdfText(buffer: Buffer): Promise<string[]> {
     }
     if (currentLine) lines.push(currentLine.trim())
 
-    pages.push(lines.join('\n'))
+    const text = lines.join('\n').trim()
+    if (text) pages.push(text)
   }
 
   return pages
@@ -85,18 +86,18 @@ export async function POST(request: NextRequest) {
           continue
         }
 
-        const fullText = pages.join('\n\n')
-
-        if (!fullText || fullText.trim().length < 10) {
+        if (!pages.length) {
           errors.push(`${file.name}: tidak ada teks (mungkin scan/gambar)`)
           continue
         }
+
+        const fullText = pages.join('\n\n')
 
         const globalMarketplace = detectGlobalMarketplace(fullText)
         let fileLabels: PdfLabel[] = []
 
         for (const pageText of pages) {
-          if (pageText.trim().length < 10) continue
+          if (pageText.trim().length < 30) continue
           const labels = parseLabelText(pageText)
           fileLabels.push(...labels)
         }
@@ -106,17 +107,12 @@ export async function POST(request: NextRequest) {
           fileLabels = labels
         }
 
-        if (fileLabels.length === 0 && pages.length > 1) {
-          for (const pageText of pages) {
-            if (pageText.trim().length < 10) continue
-            const normalized = pageText.replace(/\s{2,}/g, ' ').slice(0, 200)
-            rawTexts.push(`[Page] ${normalized}`)
-          }
-        }
-
         if (fileLabels.length === 0) {
+          const samples = pages.slice(0, 3).map((p, i) =>
+            `[Hal ${i + 1}] ${p.replace(/\s+/g, ' ').substring(0, 300)}`
+          )
+          rawTexts.push(`=== ${file.name} (${pages.length} hal) ===\n${samples.join('\n\n')}`)
           errors.push(`${file.name}: tidak ditemukan data penerima (${pages.length} halaman)`)
-          if (fullText.slice(0, 1)) rawTexts.push(`=== ${file.name} ===\n${fullText.substring(0, 1000)}`)
           continue
         }
 
