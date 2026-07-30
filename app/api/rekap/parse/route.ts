@@ -1,12 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { parseLabelText, parseRecap, type PdfLabel } from '@/lib/rekap-parser'
-import { createRequire } from 'module'
-import { pathToFileURL } from 'url'
-
-const req = createRequire(import.meta.url)
-const WORKER_PATH = pathToFileURL(
-  req.resolve('pdfjs-dist/legacy/build/pdf.worker.min.mjs')
-).href
 
 function detectGlobalMarketplace(fullText: string): 'TP' | 'SP' | null {
   const lower = fullText.toLowerCase()
@@ -20,7 +13,10 @@ function detectGlobalMarketplace(fullText: string): 'TP' | 'SP' | null {
 
 async function extractPdfText(buffer: Buffer): Promise<string> {
   const mod = await import('pdfjs-dist/legacy/build/pdf.mjs')
-  mod.GlobalWorkerOptions.workerSrc = WORKER_PATH
+  mod.GlobalWorkerOptions.workerSrc = new URL(
+    'pdfjs-dist/legacy/build/pdf.worker.min.mjs',
+    'file://' + process.cwd() + '/node_modules/'
+  ).href
 
   const data = new Uint8Array(buffer)
   const doc = await mod.getDocument({ data }).promise

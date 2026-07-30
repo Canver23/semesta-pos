@@ -1,5 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  serverExternalPackages: ['pdfjs-dist'],
+  experimental: {
+    serverComponentsExternalPackages: ['pdfjs-dist'],
+  },
 }
 module.exports = nextConfig
