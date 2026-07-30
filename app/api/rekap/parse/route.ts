@@ -5,6 +5,7 @@ function detectGlobalMarketplace(fullText: string): 'TP' | 'SP' | null {
   const lower = fullText.toLowerCase()
   const hasShopee = lower.includes('shopee')
   const hasTP = lower.includes('tokopedia') || lower.includes('tiktokshop') || lower.includes('tiktok shop')
+    || /TT\s*Order\s*ID/i.test(fullText)
 
   if (hasShopee && !hasTP) return 'SP'
   if (!hasShopee && hasTP) return 'TP'
