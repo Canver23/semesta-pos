@@ -25,13 +25,26 @@ async function extractPdfText(buffer: Buffer): Promise<string> {
   for (let i = 1; i <= doc.numPages; i++) {
     const page = await doc.getPage(i)
     const textContent = await page.getTextContent()
-    const text = textContent.items
-      .map((item: any) => item.str)
-      .join(' ')
-    pages.push(text)
+
+    const lines: string[] = []
+    let currentLine = ''
+    let lastY = -1
+
+    for (const item of textContent.items) {
+      const y = item.transform?.[5] ?? 0
+      if (lastY !== -1 && Math.abs(y - lastY) > 3) {
+        if (currentLine) lines.push(currentLine.trim())
+        currentLine = ''
+      }
+      currentLine += item.str
+      lastY = y
+    }
+    if (currentLine) lines.push(currentLine.trim())
+
+    pages.push(lines.join('\n'))
   }
 
-  return pages.join('\n')
+  return pages.join('\n\n')
 }
 
 function processText(fullText: string): PdfLabel[] {
@@ -111,6 +124,7 @@ export async function POST(request: NextRequest) {
 
     const allLabels: PdfLabel[] = []
     const errors: string[] = []
+    const rawTexts: string[] = []
 
     for (const file of pdfFiles) {
       try {
@@ -135,6 +149,7 @@ export async function POST(request: NextRequest) {
 
         if (labels.length === 0) {
           errors.push(`${file.name}: tidak ditemukan data penerima`)
+          rawTexts.push(`=== ${file.name} ===\n${fullText.substring(0, 1000)}`)
           continue
         }
 
@@ -158,6 +173,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({
         error: 'Tidak dapat menemukan data penerima di semua file.',
         fileErrors: errors,
+        rawText: rawTexts.join('\n\n'),
       }, { status: 422 })
     }
 

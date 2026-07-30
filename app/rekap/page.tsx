@@ -49,6 +49,7 @@ export default function RekapPage() {
       if (!res.ok || data.error) {
         setError(data.error || 'Gagal memproses PDF')
         if (data.fileErrors) setFileErrors(data.fileErrors)
+        if (data.rawText) setRawText(data.rawText)
         return
       }
 
