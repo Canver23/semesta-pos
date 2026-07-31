@@ -1,4 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { computeShopeeDashboard, computeTokopediaDashboard, type DashboardMetrics } from '@/lib/xlsx-dashboard'
+
+function detectPlatform(sheets: { name: string }[]): 'shopee' | 'tokopedia' | null {
+  const names = sheets.map(s => s.name.toLowerCase())
+  if (names.some(n => n.includes('order') && n.includes('sku'))) return 'tokopedia'
+  if (names.some(n => n === 'orders' || n.includes('order'))) return 'shopee'
+  if (names.some(n => n.includes('detail') || n.includes('pesanan'))) return 'tokopedia'
+  return null
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -35,10 +44,21 @@ export async function POST(request: NextRequest) {
       }
     })
 
+    const platform = detectPlatform(sheets)
+    let dashboard: DashboardMetrics | null = null
+
+    if (platform === 'shopee') {
+      dashboard = computeShopeeDashboard(sheets)
+    } else if (platform === 'tokopedia') {
+      dashboard = computeTokopediaDashboard(sheets)
+    }
+
     return NextResponse.json({
       success: true,
       fileName: file.name,
+      platform,
       sheets,
+      dashboard,
     })
   } catch (err) {
     console.error('Spreadsheet parse error:', err)
