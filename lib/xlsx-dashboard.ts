@@ -112,22 +112,7 @@ export function computeTokopediaDashboard(sheets: SheetInfo[]): DashboardMetrics
     deal: safeNum(d[2]?.[i + 1]),
     cancel: safeNum(d[3]?.[i + 1]),
   }))
-  // Weekly (rows 7-11: weekly sums, row 15: laba)
-  const weeklyTransaksi = weekLabels.map((wl, i) => ({
-    week: wl,
-    deal: safeNum(d[7]?.[i + 1]),
-    cancel: safeNum(d[8]?.[i + 1]),
-    total: safeNum(d[9]?.[i + 1]),
-  }))
-
-  // Daily transaksi (row 2 = deal, row 3 = cancel)
-  const dailyTransaksi = dayLabels.map((dt, i) => ({
-    date: dt,
-    deal: safeNum(d[2]?.[i + 1]),
-    cancel: safeNum(d[3]?.[i + 1]),
-  }))
-
-  // Weekly transaksi (row 7 = deal, row 8 = cancel, row 10 = kuantitas total)
+  // Weekly (rows 7-9: weekly sums, row 15: laba)
   const weeklyTransaksi = weekLabels.map((wl, i) => ({
     week: wl,
     deal: safeNum(d[7]?.[i + 1]),
