@@ -113,6 +113,17 @@ function extractNames(lines: string[], backwardFirst: boolean, useToAddress: boo
       if (isName(val)) { names.push(val); continue }
     }
 
+    let found = false
+
+    if (backwardFirst) {
+      for (let j = i - 1; j >= Math.max(0, i - 15); j--) {
+        const c = lines[j].trim()
+        if (!c) continue
+        if (isName(c)) { names.push(c); found = true; break }
+      }
+      if (found) continue
+    }
+
     for (let j = 1; j < 20; j++) {
       if (i + j >= lines.length) break
       const c = lines[i + j].trim()
