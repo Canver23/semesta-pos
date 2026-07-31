@@ -28,13 +28,15 @@ function normalizeLine(line: string): string {
 function detectCourier(text: string): { name: string; short: string } | null {
   const fl = text.split('\n')[0].trim()
 
+  if (/paxel|TO\s*\(\s*ADDRESS\s*\)/i.test(text)) return { name: 'PAXEL', short: 'PAXEL' }
   if (/^(?:NDD|EZ)$/i.test(fl)) return { name: 'J&T', short: 'J&T' }
   if (/^(?:ECO)$/i.test(fl)) {
     if (/\bNo\s*\.?\s*Pesanan\s*:/i.test(text) || /shopee/i.test(text)) return { name: 'SPX', short: 'SPX' }
     return { name: 'J&T', short: 'J&T' }
   }
   if (/^(?:STD)$/i.test(fl)) return { name: 'SPX', short: 'SPX' }
-  if (/^(?:REG|SD)$/i.test(fl)) return { name: 'AnterAja', short: 'AA' }
+  if (/^(?:REG)$/i.test(fl)) return { name: 'AnterAja', short: 'AA' }
+  if (/^(?:SD)$/i.test(fl)) return { name: 'AnterAja', short: 'AA' }
   if (/^(?:HOME)$/i.test(fl)) return { name: 'SPX', short: 'SPX' }
   if (/^(?:FastTrack)$/i.test(fl)) return { name: 'J&T', short: 'J&T' }
   if (/\bSAMEDAY\b/i.test(text)) return { name: 'AnterAja', short: 'AA' }
@@ -62,7 +64,7 @@ function hasDigits(s: string, min: number = 5): boolean {
   return s.replace(/\D/g, '').length >= min
 }
 
-const SKIP_WORD = /^(toko|plastik|semesta|tokoplastik|tokoplastiksemesta|pengirim|penerima|jawa|jalan|jl|dki|banten|cod|cashless|weight|ship|order|product|print|no|syarat|sku|qty|nama|berat|kota|kab|rt|dusun|barang|default|batas|nick|pasar|kompleks|penjual|ruko|ndd|eco|reg|std|ez|home|sd|sameday|fasttrack|jnt|anteraja|sicepat|spx|jne|ninja|pos|tali|polynet|cheffy|plastik|wrapping|kuning|hitam|putih|merah|biru|hijau|abu|pcs|bal|pack|lembar|toros|kg|gram|food|grade|meter|roll|cm|mm|metre|strerch|film|pembungkus|makanan|waring|rambang|jaring|buah|panjang|rafia|galaksi|ikat|kuat|tebal|serbaguna|teluk|warung|naga|shasa|salad|garuda|perempatan|gniblorajateng|gni|blora|jateng|sebelah|bank|mega|disara|coblong|imam|bonjol|sera|induk|caringin|ciparay|babakan|pamokolan|cihaurbeuti|ciamis|bandung|jakarta|mampang|prapatan|balaraja|kartawijaya|nomor|plastik|wrapping|stretch|grade|food)$/i
+const SKIP_WORD = /^(toko|plastik|semesta|tokoplastik|tokoplastiksemesta|pengirim|penerima|jawa|jalan|jl|dki|banten|cod|cashless|weight|ship|order|product|print|no|syarat|sku|qty|nama|berat|kota|kab|rt|dusun|barang|default|batas|nick|pasar|kompleks|penjual|ruko|ndd|eco|reg|std|ez|home|sd|sameday|fasttrack|jnt|anteraja|sicepat|spx|jne|ninja|pos|paxel|from|sender|tali|polynet|cheffy|plastik|wrapping|kuning|hitam|putih|merah|biru|hijau|abu|pcs|bal|pack|lembar|toros|kg|gram|food|grade|meter|roll|cm|mm|metre|strerch|film|pembungkus|makanan|waring|rambang|jaring|buah|panjang|rafia|galaksi|ikat|kuat|tebal|serbaguna|teluk|warung|naga|shasa|salad|garuda|perempatan|gniblorajateng|gni|blora|jateng|sebelah|bank|mega|disara|coblong|imam|bonjol|sera|induk|caringin|ciparay|babakan|pamokolan|cihaurbeuti|ciamis|bandung|jakarta|mampang|prapatan|balaraja|kartawijaya|nomor|plastik|wrapping|stretch|grade|food)$/i
 
 const ADDRESS_SUBSTR = ['gni', 'blora', 'jateng', 'perempatan', 'coblong', 'caringin', 'ciamis', 'bandung', 'jakarta', 'mampang', 'balaraja', 'bonjol', 'ciparay', 'pamokolan', 'cihaurbeuti', 'kartawijaya', 'prapatan', 'babakan', 'imam', 'induk', 'sera', 'mega', 'sebelah', 'disara', 'nomor']
 
@@ -82,7 +84,7 @@ function isName(s: string): boolean {
     if (lower.includes(kw)) return false
   }
 
-  const tokens = lower.split(/[\s：:=]+/)
+  const tokens = lower.split(/[\s：:=()]+/)
   if (tokens.length >= 5) return false
 
   for (const tk of tokens) {
@@ -100,7 +102,7 @@ function extractNames(lines: string[], backwardFirst: boolean, useToAddress: boo
 
     let isRecipientLine = /^Penerima\s*:?\s*$|^Penerima\s*:?\s*(.+)/i.test(line)
     if (useToAddress) {
-      isRecipientLine = /\bTO\s*\(\s*ADDRESS\s*\)/i.test(line)
+      isRecipientLine = /\bTO\s*\(\s*ADDRESS\s*\)/i.test(line) && !/\bFROM\b/i.test(line)
     }
 
     if (!isRecipientLine) continue
@@ -111,21 +113,11 @@ function extractNames(lines: string[], backwardFirst: boolean, useToAddress: boo
       if (isName(val)) { names.push(val); continue }
     }
 
-    let found = false
-
-    if (backwardFirst) {
-      for (let j = i - 1; j >= Math.max(0, i - 15); j--) {
-        const c = lines[j].trim()
-        if (!c) continue
-        if (isName(c)) { names.push(c); found = true; break }
-      }
-      if (found) continue
-    }
-
     for (let j = 1; j < 20; j++) {
       if (i + j >= lines.length) break
       const c = lines[i + j].trim()
       if (!c) continue
+      if (useToAddress && /\bFROM\b/i.test(c)) continue
       if (isName(c)) { names.push(c); found = true; break }
     }
 
