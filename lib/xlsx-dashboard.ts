@@ -1,27 +1,35 @@
 export interface SheetInfo {
-  name: string
-  rows: number
-  cols: number
-  headers: string[]
-  data: any[][]
+  name: string; rows: number; cols: number; headers: string[]; data: any[][]
 }
 
 export interface DashboardMetrics {
-  totalRevenue: number
-  totalOrders: number
-  totalQty: number
-  revenueByDay: { date: string; revenue: number }[]
-  courierDistribution: { name: string; count: number; color: string }[]
-  topProducts: { name: string; qty: number }[]
+  // Legacy
+  totalRevenue?: number; totalOrders?: number; totalQty?: number
+  revenueByDay?: { date: string; revenue: number }[]
+  courierDistribution?: { name: string; count: number; color: string }[]
+  topProducts?: { name: string; qty: number }[]
   platformBreakdown: { platform: string; orders: number; revenue: number }
-  // Weekly & daily data from Sheet3
-  dailyData?: { date: string; transaksi: number; cancel: number; produk: number }[]
-  weeklyData?: { week: string; transaksi: number; produk: number; laba: number }[]
-  productRank?: { name: string; deal: number; cancel: number; total: number }[]
-  summary?: { totalTransaksi: number; totalCancel: number; totalProduk: number; totalLaba: number }
+  // 1. Keseluruhan
+  overall: { dealTransaksi: number; cancelTransaksi: number; totalTransaksi: number; qtyItem: number; laba: number }
+  // 2. Jumlah Transaksi
+  dailyTransaksi: { date: string; deal: number; cancel: number }[]
+  weeklyTransaksi: { week: string; deal: number; cancel: number; total: number }[]
+  // 3. Laba
+  weeklyLaba: { week: string; laba: number; cumulative: number; paid: string }[]
+  // 4. Kualitas Pembelian
+  productRanks: { name: string; deal: number; cancel: number; total: number }[]
+  // 5. Resume Metode Pembayaran
+  paymentByWeek: { week: string; codTransaksi: number; codQty: number }[]
+  // 6. Kuantitas Produk Terjual
+  qtyByWeek: { week: string; qty: number }[]
 }
 
-const COURIER_COLORS: Record<string, string> = { 'SPX': '#EE4D2D', 'J&T': '#DC2626', 'AnterAja': '#2563EB', 'SiCepat': '#D97706', 'PAXEL': '#059669', 'JNE': '#7C3AED', 'Pos Indonesia': '#F59E0B', 'ID Express': '#0891B2' }
+const COURIER_COLORS: Record<string, string> = { 'SPX': '#EE4D2D', 'J&T': '#DC2626', 'AnterAja': '#2563EB', 'SiCepat': '#D97706', 'PAXEL': '#059669', 'JNE': '#7C3AED' }
+
+function safeNum(v: any, fallback = 0): number {
+  if (v === null || v === undefined || v === '' || v === '-') return fallback
+  return parseFloat(String(v)) || fallback
+}
 
 function normalizeCourierName(opsi: string): string {
   const o = opsi.toLowerCase()
@@ -31,165 +39,139 @@ function normalizeCourierName(opsi: string): string {
   if (o.includes('sicepat')) return 'SiCepat'
   if (o.includes('paxel')) return 'PAXEL'
   if (o.includes('jne')) return 'JNE'
-  if (o.includes('pos')) return 'Pos Indonesia'
-  if (o.includes('id express')) return 'ID Express'
   return 'Lainnya'
 }
 
 function getColor(name: string): string { return COURIER_COLORS[name] || '#6B7280' }
 
-function safeNum(v: any, fallback = 0): number {
-  if (v === null || v === undefined || v === '' || v === '-') return fallback
-  return parseFloat(String(v)) || fallback
-}
-
-export function computeShopeeDashboard(sheets: SheetInfo[]): DashboardMetrics {
-  const ordersSheet = sheets.find(s => s.name.toLowerCase().includes('order') && !s.name.toLowerCase().includes('sku'))
-  if (!ordersSheet) return { totalRevenue: 0, totalOrders: 0, totalQty: 0, revenueByDay: [], courierDistribution: [], topProducts: [], platformBreakdown: { platform: 'Shopee', orders: 0, revenue: 0 } }
-
-  const rows = ordersSheet.data
-  let totalRevenue = 0, totalQty = 0
-  const revByDay = new Map<string, number>()
-  const courierMap = new Map<string, number>()
-  const productMap = new Map<string, number>()
-
-  for (const row of rows) {
-    const status = String(row[1] || '')
-    if (status === 'Dibatalkan' || status === 'Tidak Selesai') continue
-    const qty = parseInt(String(row[18] || '0')) || 1
-    const rev = parseFloat(String(row[38] || '0')) || 0
-    const opsi = String(row[5] || '')
-    const produk = String(row[13] || '')
-    const tglRaw = String(row[49] || row[48] || '')
-    totalQty += qty; totalRevenue += rev
-    const dateKey = tglRaw.split(' ')[0]
-    if (dateKey) revByDay.set(dateKey, (revByDay.get(dateKey) || 0) + rev)
-    const courier = normalizeCourierName(opsi)
-    courierMap.set(courier, (courierMap.get(courier) || 0) + 1)
-    if (produk) productMap.set(produk, (productMap.get(produk) || 0) + qty)
-  }
-
-  return buildResult(totalRevenue, rows.length, totalQty, revByDay, courierMap, productMap, 'Shopee')
-}
-
-export function computeTokopediaDashboard(sheets: SheetInfo[]): DashboardMetrics {
-  const skuSheet = sheets.find(s => s.name.toLowerCase().includes('order') && s.name.toLowerCase().includes('sku'))
-  if (!skuSheet) return { totalRevenue: 0, totalOrders: 0, totalQty: 0, revenueByDay: [], courierDistribution: [], topProducts: [], platformBreakdown: { platform: 'TikTok/Tokopedia', orders: 0, revenue: 0 } }
-
-  const rows = skuSheet.data
-  let totalRevenue = 0, totalQty = 0
-  const revByDay = new Map<string, number>()
-  const courierMap = new Map<string, number>()
-  const productMap = new Map<string, number>()
-  const seenOrders = new Set<string>()
-
-  for (const row of rows) {
-    const orderId = String(row[0] || '')
-    if (!orderId) continue; seenOrders.add(orderId)
-    const qty = parseInt(String(row[9] || '0')) || 1
-    const amount = parseFloat(String(row[28] || String(row[27] || '0'))) || 0
-    const delivery = String(row[41] || '')
-    const produk = String(row[7] || '')
-    const tglRaw = String(row[29] || '')
-    totalQty += qty; totalRevenue += amount
-    const dateKey = tglRaw.split(' ')[0]
-    if (dateKey) revByDay.set(dateKey, (revByDay.get(dateKey) || 0) + amount)
-    courierMap.set(normalizeCourierName(delivery), (courierMap.get(normalizeCourierName(delivery)) || 0) + 1)
-    if (produk) productMap.set(produk, (productMap.get(produk) || 0) + qty)
-  }
-
-  const baseResult = buildResult(totalRevenue, seenOrders.size || rows.length, totalQty, revByDay, courierMap, productMap, 'TikTok/Tokopedia')
-
-  // Extract Sheet3 weekly data
-  const sheet3 = sheets.find(s => s.name === 'Sheet3')
-  if (sheet3) {
-    const sdata = sheet3.data as any[][]
-    const weeklyData = extractWeeklyData(sdata)
-    const dailyData = extractDailyData(sdata)
-    const productRank = extractProductRank(sdata)
-    const summary = extractSummary(sdata)
-    return { ...baseResult, dailyData, weeklyData, productRank, summary }
-  }
-
-  return baseResult
-}
-
-function extractDailyData(sdata: any[][]): { date: string; transaksi: number; cancel: number; produk: number }[] {
-  const result: { date: string; transaksi: number; cancel: number; produk: number }[] = []
-  if (sdata.length < 6) return result
-  const dates = [26, 27, 28, 29, 30, 31]
-  for (let i = 0; i < dates.length; i++) {
-    result.push({
-      date: String(dates[i]),
-      transaksi: safeNum(sdata[2]?.[i + 1]),
-      cancel: safeNum(sdata[3]?.[i + 1]),
-      produk: safeNum(sdata[4]?.[i + 1]),
-    })
-  }
-  return result
-}
-
-function extractWeeklyData(sdata: any[][]): { week: string; transaksi: number; produk: number; laba: number }[] {
-  const result: { week: string; transaksi: number; produk: number; laba: number }[] = []
-  const weekLabels = ['WEEK-1', 'WEEK-2', 'WEEK-3', 'WEEK-4', 'WEEK-5']
-  const transCols = [3, 4, 5, 6, 7] // B-F in weekly summary row
-
-  // Row 6: "WEEK-1" to "WEEK-5"
-  // Row 7: "JML TRANSAKSI" with weekly values
-  // Row 9: "JML PRODUK YANG DIBELI"
-  // Row 15: "LABA"
-
-  for (let i = 0; i < 5; i++) {
-    const col = i + 1 // B=1, C=2, etc in the WEEK-X row labels
-    result.push({
-      week: String(sdata[6]?.[col] || weekLabels[i]),
-      transaksi: safeNum(sdata[7]?.[col]),
-      produk: safeNum(sdata[9]?.[col] || sdata[10]?.[col]),
-      laba: safeNum(sdata[15]?.[col]),
-    })
-  }
-  return result.filter(w => w.week && w.week !== 'null')
-}
-
-function extractProductRank(sdata: any[][]): { name: string; deal: number; cancel: number; total: number }[] {
-  const result: { name: string; deal: number; cancel: number; total: number }[] = []
-  for (let i = 2; i < Math.min(sdata.length, 39); i++) {
-    const row = sdata[i]
-    if (!row || !row[18]) continue
-    const name = String(row[18] || '').trim()
-    if (!name || name === 'DEAL' || name === 'PRODUK') continue
-    const deal = safeNum(row[19])
-    const cancel = safeNum(row[20])
-    const total = safeNum(row[21])
-    if (total <= 0) continue
-    result.push({ name, deal, cancel, total })
-  }
-  return result.sort((a, b) => b.total - a.total)
-}
-
-function extractSummary(sdata: any[][]): { totalTransaksi: number; totalCancel: number; totalProduk: number; totalLaba: number } {
-  let totalTransaksi = 0, totalCancel = 0, totalProduk = 0, totalLaba = 0
-  for (let i = 1; i <= 5; i++) {
-    totalTransaksi += safeNum(sdata[7]?.[i])
-    totalCancel += safeNum(sdata[8]?.[i])
-    totalProduk += safeNum(sdata[9]?.[i] || sdata[10]?.[i])
-    totalLaba += safeNum(sdata[15]?.[i])
-  }
-  return { totalTransaksi, totalCancel, totalProduk, totalLaba }
-}
-
-function buildResult(
+function buildBaseResult(
   revenue: number, orders: number, qty: number,
   revByDay: Map<string, number>, courierMap: Map<string, number>,
   productMap: Map<string, number>, platform: string,
-): DashboardMetrics {
+) {
   return {
-    totalRevenue: Math.round(revenue),
-    totalOrders: orders,
-    totalQty: qty,
-    revenueByDay: Array.from(revByDay.entries()).map(([date, revenue]) => ({ date, revenue: Math.round(revenue) })).sort((a, b) => a.date.localeCompare(b.date)),
-    courierDistribution: Array.from(courierMap.entries()).map(([name, count]) => ({ name, count, color: getColor(name) })).sort((a, b) => b.count - a.count),
-    topProducts: Array.from(productMap.entries()).map(([name, qty]) => ({ name: name.substring(0, 60), qty })).sort((a, b) => b.qty - a.qty).slice(0, 10),
+    totalRevenue: Math.round(revenue), totalOrders: orders, totalQty: qty,
+    revenueByDay: Array.from(revByDay.entries()).map(([d, r]) => ({ date: d, revenue: Math.round(r) })).sort((a, b) => a.date.localeCompare(b.date)),
+    courierDistribution: Array.from(courierMap.entries()).map(([n, c]) => ({ name: n, count: c, color: getColor(n) })).sort((a, b) => b.count - a.count),
+    topProducts: Array.from(productMap.entries()).map(([n, q]) => ({ name: n.substring(0, 60), qty: q })).sort((a, b) => b.qty - a.qty).slice(0, 10),
     platformBreakdown: { platform, orders, revenue: Math.round(revenue) },
   }
 }
+
+export function computeShopeeDashboard(sheets: SheetInfo[]): DashboardMetrics {
+  const s = sheets.find(sh => sh.name.toLowerCase().includes('order') && !sh.name.toLowerCase().includes('sku'))
+  if (!s) return emptyDash('Shopee')
+  const rows = s.data; let rev = 0, qty = 0
+  const rbd = new Map<string, number>(); const cm = new Map<string, number>(); const pm = new Map<string, number>()
+  for (const row of rows) {
+    const st = String(row[1] || ''); if (st === 'Dibatalkan') continue
+    const q = parseInt(String(row[18] || '0')) || 1; const r = safeNum(row[38])
+    qty += q; rev += r; const d = String(row[49] || row[48] || '').split(' ')[0]
+    if (d) rbd.set(d, (rbd.get(d) || 0) + r)
+    cm.set(normalizeCourierName(String(row[5] || '')), (cm.get(normalizeCourierName(String(row[5] || ''))) || 0) + 1)
+    const p = String(row[13] || ''); if (p) pm.set(p, (pm.get(p) || 0) + q)
+  }
+  return { overall: emptyOverall(), dailyTransaksi: [], weeklyTransaksi: [], weeklyLaba: [], productRanks: [], paymentByWeek: [], qtyByWeek: [], ...buildBaseResult(rev, rows.length, qty, rbd, cm, pm, 'Shopee'), platformBreakdown: { platform: 'Shopee', orders: rows.length, revenue: Math.round(rev) } }
+}
+
+export function computeTokopediaDashboard(sheets: SheetInfo[]): DashboardMetrics {
+  const sku = sheets.find(sh => sh.name.toLowerCase().includes('order') && sh.name.toLowerCase().includes('sku'))
+  if (!sku) return emptyDash('TikTok/Tokopedia')
+  const rows = sku.data; let rev = 0, qty = 0; const so = new Set<string>()
+  const rbd = new Map<string, number>(); const cm = new Map<string, number>(); const pm = new Map<string, number>()
+  for (const row of rows) {
+    const oid = String(row[0] || ''); if (!oid) continue; so.add(oid)
+    const q = parseInt(String(row[9] || '0')) || 1; const r = safeNum(row[28] || row[27])
+    qty += q; rev += r; const d = String(row[29] || '').split(' ')[0]
+    if (d) rbd.set(d, (rbd.get(d) || 0) + r)
+    cm.set(normalizeCourierName(String(row[41] || '')), (cm.get(normalizeCourierName(String(row[41] || ''))) || 0) + 1)
+    const p = String(row[7] || ''); if (p) pm.set(p, (pm.get(p) || 0) + q)
+  }
+  const base = buildBaseResult(rev, so.size || rows.length, qty, rbd, cm, pm, 'TikTok/Tokopedia')
+
+  const s3 = sheets.find(sh => sh.name === 'Sheet3')
+  if (!s3) return { overall: emptyOverall(), dailyTransaksi: [], weeklyTransaksi: [], weeklyLaba: [], productRanks: [], paymentByWeek: [], qtyByWeek: [], ...base, platformBreakdown: { platform: 'TikTok/Tokopedia', orders: so.size || rows.length, revenue: Math.round(rev) } }
+
+  const d = s3.data as any[][]
+
+  // Labels
+  const weekLabels = ['WEEK-1', 'WEEK-2', 'WEEK-3', 'WEEK-4', 'WEEK-5']
+  const dayLabels = ['26', '27', '28', '29', '30', '31']
+
+  // Overall
+  const overall = {
+    dealTransaksi: safeNum(d[12]?.[1]) + safeNum(d[12]?.[2]) + safeNum(d[12]?.[3]) + safeNum(d[12]?.[4]) + safeNum(d[12]?.[5]),
+    cancelTransaksi: safeNum(d[11]?.[1]) + safeNum(d[11]?.[2]) + safeNum(d[11]?.[3]) + safeNum(d[11]?.[4]) + safeNum(d[11]?.[5]),
+    totalTransaksi: safeNum(d[10]?.[1]) + safeNum(d[10]?.[2]) + safeNum(d[10]?.[3]) + safeNum(d[10]?.[4]) + safeNum(d[10]?.[5]),
+    qtyItem: safeNum(d[9]?.[1]) + safeNum(d[9]?.[2]) + safeNum(d[9]?.[3]) + safeNum(d[9]?.[4]) + safeNum(d[9]?.[5]),
+    laba: safeNum(d[15]?.[1]) + safeNum(d[15]?.[2]) + safeNum(d[15]?.[3]) + safeNum(d[15]?.[4]) + safeNum(d[15]?.[5]),
+  }
+
+  // Daily transaksi (row 2 = deal, row 3 = cancel)
+  const dailyTransaksi = dayLabels.map((dt, i) => ({
+    date: dt,
+    deal: safeNum(d[2]?.[i + 1]),
+    cancel: safeNum(d[3]?.[i + 1]),
+  }))
+
+  // Weekly transaksi (row 12 = deal total, row 11 = cancel total, row 10 = qty total)
+  const weeklyTransaksi = weekLabels.map((wl, i) => ({
+    week: wl,
+    deal: safeNum(d[12]?.[i + 1]),
+    cancel: safeNum(d[11]?.[i + 1]),
+    total: safeNum(d[10]?.[i + 1]),
+  }))
+
+  // Laba with cumulative
+  const weeklyLaba: { week: string; laba: number; cumulative: number; paid: string }[] = []
+  let cumLaba = 0
+  for (let i = 0; i < 5; i++) {
+    cumLaba += safeNum(d[15]?.[i + 1])
+    weeklyLaba.push({
+      week: weekLabels[i],
+      laba: safeNum(d[15]?.[i + 1]),
+      cumulative: cumLaba,
+      paid: String(d[16]?.[i + 1] || ''),
+    })
+  }
+
+  // Product ranks (rows 2-39, cols 18-21)
+  const productRanks: { name: string; deal: number; cancel: number; total: number }[] = []
+  for (let i = 2; i < Math.min(d.length, 39); i++) {
+    const row = d[i]; if (!row?.[18]) continue
+    const name = String(row[18]).trim()
+    if (!name || name === 'DEAL' || name === 'PRODUK') continue
+    const deal = safeNum(row[19]); const cancel = safeNum(row[20]); const total = safeNum(row[21])
+    if (total <= 0) continue
+    productRanks.push({ name, deal, cancel, total })
+  }
+
+  // Payment (row 12/13 per week)
+  const paymentByWeek = weekLabels.map((wl, i) => ({
+    week: wl,
+    codTransaksi: safeNum(d[12]?.[i + 1]),
+    codQty: safeNum(d[13]?.[i + 1]),
+  }))
+
+  // Qty by week (row 10)
+  const qtyByWeek = weekLabels.map((wl, i) => ({
+    week: wl,
+    qty: safeNum(d[10]?.[i + 1]),
+  }))
+
+  return {
+    overall, dailyTransaksi, weeklyTransaksi, weeklyLaba, productRanks, paymentByWeek, qtyByWeek,
+    ...base,
+    platformBreakdown: { platform: 'TikTok/Tokopedia', orders: so.size || rows.length, revenue: Math.round(rev) },
+  }
+}
+
+function emptyDash(platform: string): DashboardMetrics {
+  return {
+    overall: emptyOverall(), dailyTransaksi: [], weeklyTransaksi: [], weeklyLaba: [], productRanks: [], paymentByWeek: [], qtyByWeek: [],
+    totalRevenue: 0, totalOrders: 0, totalQty: 0, revenueByDay: [], courierDistribution: [], topProducts: [],
+    platformBreakdown: { platform, orders: 0, revenue: 0 },
+  }
+}
+
+function emptyOverall() { return { dealTransaksi: 0, cancelTransaksi: 0, totalTransaksi: 0, qtyItem: 0, laba: 0 } }
