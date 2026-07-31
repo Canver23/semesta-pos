@@ -108,13 +108,15 @@ export async function POST(request: NextRequest) {
         }
 
         if (fileLabels.length === 0) {
-          const samples = pages.slice(0, 3).map((p, i) =>
-            `[Hal ${i + 1}] ${p.replace(/\s+/g, ' ').substring(0, 300)}`
+          const samples = pages.slice(0, 5).map((p, i) =>
+            `[Hal ${i + 1}] ${p.substring(0, 500)}`
           )
           rawTexts.push(`=== ${file.name} (${pages.length} hal) ===\n${samples.join('\n\n')}`)
           errors.push(`${file.name}: tidak ditemukan data penerima (${pages.length} halaman)`)
           continue
         }
+
+        rawTexts.push(`=== ${file.name} OK: ${fileLabels.length} label ===\n${pages[0].substring(0, 300)}`)
 
         for (const label of fileLabels) {
           if (!label.marketplace && globalMarketplace) {
