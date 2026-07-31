@@ -103,6 +103,10 @@ export async function POST(request: NextRequest) {
         }
 
         if (fileLabels.length === 0) {
+          rawTexts.push(`=== ${file.name} (${pages.length} hal) JOINED ===\n${pages.join('\n---PAGE BREAK---\n').substring(0, 3000)}`)
+        }
+
+        if (fileLabels.length === 0) {
           const labels = parseLabelText(fullText)
           fileLabels = labels
         }

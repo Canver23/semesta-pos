@@ -102,7 +102,7 @@ function extractNames(lines: string[], backwardFirst: boolean, useToAddress: boo
 
     let isRecipientLine = /^Penerima\s*:?\s*$|^Penerima\s*:?\s*(.+)/i.test(line)
     if (useToAddress) {
-      isRecipientLine = /\bTO\s*\(\s*ADDRESS\s*\)/i.test(line) && !/\bFROM\b/i.test(line)
+      isRecipientLine = /\bTO\s*\(\s*ADDRESS\s*\)/i.test(line)
     }
 
     if (!isRecipientLine) continue
@@ -115,21 +115,21 @@ function extractNames(lines: string[], backwardFirst: boolean, useToAddress: boo
 
     let found = false
 
-    if (backwardFirst) {
-      for (let j = i - 1; j >= Math.max(0, i - 15); j--) {
-        const c = lines[j].trim()
-        if (!c) continue
-        if (isName(c)) { names.push(c); found = true; break }
-      }
-      if (found) continue
-    }
+    const searchDir = useToAddress ? -1 : (backwardFirst ? -1 : 1)
 
-    for (let j = 1; j < 20; j++) {
-      if (i + j >= lines.length) break
+    for (let j = searchDir; Math.abs(j) < 20; j += searchDir > 0 ? 1 : -1) {
+      if (searchDir > 0 && i + j >= lines.length) break
+      if (searchDir < 0 && i + j < 0) break
       const c = lines[i + j].trim()
       if (!c) continue
-      if (useToAddress && /\bFROM\b/i.test(c)) continue
+      if (useToAddress && /\bFROM\b/i.test(c)) break
+
       if (isName(c)) { names.push(c); found = true; break }
+
+      if (useToAddress && hasDigits(c, 6)) {
+        const namePart = c.replace(/^[\d\s()+\-*]+/, '').trim()
+        if (isName(namePart)) { names.push(namePart); found = true; break }
+      }
     }
 
     if (!found) {
