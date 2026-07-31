@@ -58,6 +58,7 @@ function detectCourier(text: string): { name: string; short: string } | null {
 function detectMarketplace(text: string): 'TP' | 'SP' | null {
   if (/shopee/i.test(text)) return 'SP'
   if (/\bNo\s*\.?\s*Pesanan\s*:/i.test(text)) return 'SP'
+  if (/Pesan:\s*\(/i.test(text)) return 'SP'
   return 'TP'
 }
 
@@ -65,9 +66,9 @@ function hasDigits(s: string, min: number = 5): boolean {
   return s.replace(/\D/g, '').length >= min
 }
 
-const SKIP_WORD = /^(toko|plastik|semesta|tokoplastik|tokoplastiksemesta|pengirim|penerima|jawa|jalan|jl|dki|banten|cod|cashless|weight|ship|order|product|print|no|syarat|sku|qty|nama|berat|kota|kab|rt|dusun|barang|default|batas|nick|pasar|kompleks|penjual|ruko|ndd|eco|reg|std|ez|home|sd|sameday|fasttrack|jnt|anteraja|sicepat|spx|jne|ninja|pos|paxel|from|sender|tali|polynet|cheffy|plastik|wrapping|kuning|hitam|putih|merah|biru|hijau|abu|pcs|bal|pack|lembar|toros|kg|gram|food|grade|meter|roll|cm|mm|metre|strerch|film|pembungkus|makanan|waring|rambang|jaring|buah|panjang|rafia|galaksi|ikat|kuat|tebal|serbaguna|teluk|warung|naga|shasa|salad|garuda|perempatan|gniblorajateng|gni|blora|jateng|sebelah|bank|mega|disara|coblong|imam|bonjol|sera|induk|caringin|ciparay|babakan|pamokolan|cihaurbeuti|ciamis|bandung|jakarta|mampang|prapatan|balaraja|kartawijaya|nomor|plastik|wrapping|stretch|grade|food)$/i
+const SKIP_WORD = /^(toko|plastik|semesta|tokoplastik|tokoplastiksemesta|pengirim|penerima|jawa|jalan|jl|dki|banten|cod|cashless|weight|ship|order|product|print|no|syarat|sku|qty|nama|berat|kota|kab|rt|dusun|barang|default|batas|nick|pasar|kompleks|penjual|ruko|ndd|eco|reg|std|ez|home|sd|sameday|fasttrack|jnt|anteraja|sicepat|spx|jne|ninja|pos|paxel|from|sender|tali|polynet|cheffy|plastik|wrapping|kuning|hitam|putih|merah|biru|hijau|abu|pcs|bal|pack|lembar|toros|kg|gram|food|grade|meter|roll|cm|mm|metre|strerch|film|pembungkus|makanan|waring|rambang|jaring|buah|panjang|rafia|galaksi|ikat|kuat|tebal|serbaguna|teluk|naga|shasa|salad|garuda|perempatan|gniblorajateng|gni|blora|jateng|sebelah|bank|mega|disara|coblong|imam|bonjol|sera|induk|caringin|ciparay|babakan|pamokolan|cihaurbeuti|ciamis|bandung|jakarta|mampang|prapatan|balaraja|kartawijaya|nomor|plastik|wrapping|stretch|grade|food|red|bestfr|putih|merah|biru|kuning|hitam|hijau|abu)$/i
 
-const ADDRESS_SUBSTR = ['gni', 'blora', 'jateng', 'perempatan', 'coblong', 'caringin', 'ciamis', 'bandung', 'jakarta', 'mampang', 'balaraja', 'bonjol', 'ciparay', 'pamokolan', 'cihaurbeuti', 'kartawijaya', 'prapatan', 'babakan', 'imam', 'induk', 'sera', 'mega', 'sebelah', 'disara', 'nomor', 'kab.', 'kab ', 'sumedang', 'cisarua', 'purwakarta']
+const ADDRESS_SUBSTR = ['kab.', 'kab ', 'sumedang', 'cisarua', 'purwakarta', 'gni', 'blora', 'jateng', 'perempatan', 'coblong', 'caringin', 'ciamis', 'bandung', 'mampang', 'balaraja', 'bonjol', 'ciparay', 'pamokolan', 'cihaurbeuti', 'kartawijaya', 'prapatan', 'babakan', 'imam', 'induk', 'sera', 'mega', 'sebelah', 'disara', 'nomor']
 
 function isName(s: string): boolean {
   const t = s.trim()
@@ -76,6 +77,7 @@ function isName(s: string): boolean {
   if (hasDigits(t, 3)) return false
   if (/^[\d\s.,()+\-/:;|：]+$/.test(t)) return false
   if (/^[A-Z\s]{4,20}$/.test(t) && (t.match(/[A-Z]/g) || []).length >= 4) return false
+  if (/^[A-Z]{2,3}$/.test(t) && !t.includes('*')) return false
 
   const lower = t.toLowerCase()
   const alphaCount = (lower.match(/[a-z*]/gi) || []).length
@@ -85,7 +87,7 @@ function isName(s: string): boolean {
     if (lower.includes(kw)) return false
   }
 
-  const tokens = lower.split(/[\s：:=()]+/)
+  const tokens = lower.split(/[\s：:=()\/]+/)
   if (tokens.length >= 5) return false
 
   for (const tk of tokens) {
@@ -157,7 +159,7 @@ export function parseLabelText(text: string): PdfLabel[] {
 
   const isCargo = /^(?:FastTrack)$/i.test(lines[0])
   const isPaxel = /p\s*a\s*x\s*e\s*l|paxel|TO\s*\(\s*ADDRESS\s*\)/i.test(joined)
-  const isSameday = /^(?:REG|SD)$/i.test(lines[0]) || /\bSAMEDAY\b/i.test(joined) && !isPaxel
+  const isSameday = /^(?:SD)$/i.test(lines[0]) || /\bSAMEDAY\b/i.test(joined) && !isPaxel
 
   const useToAddress = isPaxel
   const directNames = extractNames(lines, isCargo, useToAddress)
