@@ -7,6 +7,7 @@ const COURIERS: { name: string; short: string; patterns: RegExp[] }[] = [
   { name: 'J&T', short: 'J&T', patterns: [/j&t/i] },
   { name: 'SPX', short: 'SPX', patterns: [/spx/i] },
   { name: 'SiCepat', short: 'SiCepat', patterns: [/sicepat/i] },
+  { name: 'PAXEL', short: 'PAXEL', patterns: [/paxel/i] },
   { name: 'JNE', short: 'JNE', patterns: [/jne/i] },
   { name: 'Pos Indonesia', short: 'Pos', patterns: [/pos indonesia/i] },
   { name: 'ID Express', short: 'IDX', patterns: [/id express/i] },
@@ -40,6 +41,7 @@ function detectCourier(text: string): { name: string; short: string } | null {
   if (/\bJY\d{8,}\b/.test(text)) return { name: 'J&T', short: 'J&T' }
   if (/\bTSA-?\d{8,}\b/.test(text)) return { name: 'SiCepat', short: 'SiCepat' }
   if (/CASHLESS|No\.?\s*Resi\s*:?\s*\d{12,}/i.test(text)) return { name: 'AnterAja', short: 'AA' }
+  if (/paxel|TO\s*\(\s*ADDRESS\s*\)/i.test(text)) return { name: 'PAXEL', short: 'PAXEL' }
   if (/spexpress|spx|shopee express/i.test(text)) return { name: 'SPX', short: 'SPX' }
   if (/jet\.co\.id|\bjnt\b|j&t/i.test(text)) return { name: 'J&T', short: 'J&T' }
   if (/sicepat|si cepat/i.test(text)) return { name: 'SiCepat', short: 'SiCepat' }
@@ -90,15 +92,21 @@ function isName(s: string): boolean {
   return true
 }
 
-function extractNames(lines: string[], backwardFirst: boolean): string[] {
+function extractNames(lines: string[], backwardFirst: boolean, useToAddress: boolean): string[] {
   const names: string[] = []
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i]
-    if (!/^Penerima\s*:?\s*$|^Penerima\s*:?\s*(.+)/i.test(line)) continue
+
+    let isRecipientLine = /^Penerima\s*:?\s*$|^Penerima\s*:?\s*(.+)/i.test(line)
+    if (useToAddress) {
+      isRecipientLine = /\bTO\s*\(\s*ADDRESS\s*\)/i.test(line)
+    }
+
+    if (!isRecipientLine) continue
 
     const m = line.match(/^Penerima\s*:?\s*(.+)/i)
-    if (m?.[1]) {
+    if (!useToAddress && m?.[1]) {
       const val = m[1].trim()
       if (isName(val)) { names.push(val); continue }
     }
@@ -144,16 +152,20 @@ export function parseLabelText(text: string): PdfLabel[] {
   if (!courier) return []
 
   const isCargo = /^(?:FastTrack)$/i.test(lines[0])
+  const isPaxel = /paxel|TO\s*\(\s*ADDRESS\s*\)/i.test(joined)
 
-  const directNames = extractNames(lines, isCargo)
+  const useToAddress = isPaxel
+  const directNames = extractNames(lines, isCargo, useToAddress)
   if (directNames.length === 0) return []
 
   let marketplace = detectMarketplace(joined)
 
+  const prefix = isCargo ? 'Cargo - ' : isPaxel ? 'sameday - ' : ''
+
   return directNames.map(name => ({
     courier: courier.name,
     courierShort: courier.short,
-    recipientName: isCargo ? `Cargo - ${name}` : name,
+    recipientName: prefix ? `${prefix}${name}` : name,
     marketplace,
   }))
 }
@@ -169,7 +181,7 @@ export function parseRecap(labels: PdfLabel[]): {
     map.get(key)!.push({ name: label.recipientName, marketplace: label.marketplace || 'TP' })
   }
 
-  const order = ['AA', 'J&T', 'SPX', 'SiCepat', 'JNE', 'Pos', 'IDX', 'Ninja']
+  const order = ['AA', 'J&T', 'SPX', 'SiCepat', 'PAXEL', 'JNE', 'Pos', 'IDX', 'Ninja']
   const groups: CourierGroup[] = []
   for (const short of order) {
     const recipients = map.get(short)
