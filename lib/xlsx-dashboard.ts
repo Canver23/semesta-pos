@@ -98,7 +98,7 @@ export function computeTokopediaDashboard(sheets: SheetInfo[]): DashboardMetrics
   const weekLabels = ['WEEK-1', 'WEEK-2', 'WEEK-3', 'WEEK-4', 'WEEK-5']
   const dayLabels = ['26', '27', '28', '29', '30', '31']
 
-  // Overall (from weekly data)
+  // Overall (from weekly data - match Excel row indices)
   const overall = {
     dealTransaksi: safeNum(d[7]?.[1]) + safeNum(d[7]?.[2]) + safeNum(d[7]?.[3]) + safeNum(d[7]?.[4]) + safeNum(d[7]?.[5]),
     cancelTransaksi: safeNum(d[8]?.[1]) + safeNum(d[8]?.[2]) + safeNum(d[8]?.[3]) + safeNum(d[8]?.[4]) + safeNum(d[8]?.[5]),
@@ -106,6 +106,19 @@ export function computeTokopediaDashboard(sheets: SheetInfo[]): DashboardMetrics
     qtyItem: safeNum(d[10]?.[1]) + safeNum(d[10]?.[2]) + safeNum(d[10]?.[3]) + safeNum(d[10]?.[4]) + safeNum(d[10]?.[5]),
     laba: safeNum(d[15]?.[1]) + safeNum(d[15]?.[2]) + safeNum(d[15]?.[3]) + safeNum(d[15]?.[4]) + safeNum(d[15]?.[5]),
   }
+  // Daily (rows 2-3: deal/cancel per date, row 4: produk pcs)
+  const dailyTransaksi = dayLabels.map((dt, i) => ({
+    date: dt,
+    deal: safeNum(d[2]?.[i + 1]),
+    cancel: safeNum(d[3]?.[i + 1]),
+  }))
+  // Weekly (rows 7-11: weekly sums, row 15: laba)
+  const weeklyTransaksi = weekLabels.map((wl, i) => ({
+    week: wl,
+    deal: safeNum(d[7]?.[i + 1]),
+    cancel: safeNum(d[8]?.[i + 1]),
+    total: safeNum(d[9]?.[i + 1]),
+  }))
 
   // Daily transaksi (row 2 = deal, row 3 = cancel)
   const dailyTransaksi = dayLabels.map((dt, i) => ({
