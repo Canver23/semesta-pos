@@ -28,7 +28,7 @@ function normalizeLine(line: string): string {
 function detectCourier(text: string): { name: string; short: string } | null {
   const fl = text.split('\n')[0].trim()
 
-  if (/paxel|TO\s*\(\s*ADDRESS\s*\)/i.test(text)) return { name: 'PAXEL', short: 'PAXEL' }
+  if (/p\s*a\s*x\s*e\s*l|paxel|TO\s*\(\s*ADDRESS\s*\)/i.test(text)) return { name: 'PAXEL', short: 'PAXEL' }
   if (/^(?:NDD|EZ)$/i.test(fl)) return { name: 'J&T', short: 'J&T' }
   if (/^(?:ECO)$/i.test(fl)) {
     if (/\bNo\s*\.?\s*Pesanan\s*:/i.test(text) || /shopee/i.test(text)) return { name: 'SPX', short: 'SPX' }
@@ -43,7 +43,6 @@ function detectCourier(text: string): { name: string; short: string } | null {
   if (/\bJY\d{8,}\b/.test(text)) return { name: 'J&T', short: 'J&T' }
   if (/\bTSA-?\d{8,}\b/.test(text)) return { name: 'SiCepat', short: 'SiCepat' }
   if (/CASHLESS|No\.?\s*Resi\s*:?\s*\d{12,}/i.test(text)) return { name: 'AnterAja', short: 'AA' }
-  if (/paxel|TO\s*\(\s*ADDRESS\s*\)/i.test(text)) return { name: 'PAXEL', short: 'PAXEL' }
   if (/spexpress|spx|shopee express/i.test(text)) return { name: 'SPX', short: 'SPX' }
   if (/jet\.co\.id|\bjnt\b|j&t/i.test(text)) return { name: 'J&T', short: 'J&T' }
   if (/sicepat|si cepat/i.test(text)) return { name: 'SiCepat', short: 'SiCepat' }
@@ -155,7 +154,7 @@ export function parseLabelText(text: string): PdfLabel[] {
   if (!courier) return []
 
   const isCargo = /^(?:FastTrack)$/i.test(lines[0])
-  const isPaxel = /paxel|TO\s*\(\s*ADDRESS\s*\)/i.test(joined)
+  const isPaxel = /p\s*a\s*x\s*e\s*l|paxel|TO\s*\(\s*ADDRESS\s*\)/i.test(joined)
 
   const useToAddress = isPaxel
   const directNames = extractNames(lines, isCargo, useToAddress)
