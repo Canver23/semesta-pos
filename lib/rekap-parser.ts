@@ -37,6 +37,7 @@ function detectCourier(text: string): { name: string; short: string } | null {
   if (/^(?:STD)$/i.test(fl)) return { name: 'SPX', short: 'SPX' }
   if (/^(?:REG)$/i.test(fl)) return { name: 'AnterAja', short: 'AA' }
   if (/^(?:SD)$/i.test(fl)) return { name: 'AnterAja', short: 'AA' }
+  if (/^(?:Reguler|Regular)$/i.test(fl)) return { name: 'JNE', short: 'JNE' }
   if (/^(?:HOME)$/i.test(fl)) return { name: 'SPX', short: 'SPX' }
   if (/^(?:FastTrack)$/i.test(fl)) return { name: 'J&T', short: 'J&T' }
   if (/\bSAMEDAY\b/i.test(text) && /\bTO\s*\(\s*ADDRESS\s*\)/i.test(text)) return { name: 'PAXEL', short: 'PAXEL' }
@@ -66,7 +67,7 @@ function hasDigits(s: string, min: number = 5): boolean {
   return s.replace(/\D/g, '').length >= min
 }
 
-const SKIP_WORD = /^(toko|plastik|semesta|tokoplastik|tokoplastiksemesta|pengirim|penerima|jawa|jalan|jl|dki|banten|cod|cashless|weight|ship|order|product|print|no|syarat|sku|qty|nama|berat|kota|kab|rt|dusun|barang|default|batas|nick|pasar|kompleks|penjual|ruko|ndd|eco|reg|std|ez|home|sd|sameday|fasttrack|jnt|anteraja|sicepat|spx|jne|ninja|pos|paxel|from|sender|tali|polynet|cheffy|plastik|wrapping|kuning|hitam|putih|merah|biru|hijau|abu|pcs|bal|pack|lembar|toros|kg|gram|food|grade|meter|roll|cm|mm|metre|strerch|film|pembungkus|makanan|waring|rambang|jaring|buah|panjang|rafia|galaksi|ikat|kuat|tebal|serbaguna|teluk|naga|shasa|salad|garuda|perempatan|gniblorajateng|gni|blora|jateng|sebelah|bank|mega|disara|coblong|imam|bonjol|sera|induk|caringin|ciparay|babakan|pamokolan|cihaurbeuti|ciamis|bandung|jakarta|mampang|prapatan|balaraja|kartawijaya|nomor|plastik|wrapping|stretch|grade|food|red|bestfr|putih|merah|biru|kuning|hitam|hijau|abu)$/i
+const SKIP_WORD = /^(toko|plastik|semesta|tokoplastik|tokoplastiksemesta|pengirim|penerima|jawa|jalan|jl|dki|banten|cod|cashless|weight|ship|order|product|print|no|syarat|sku|qty|nama|berat|kota|kab|rt|dusun|barang|default|batas|nick|pasar|kompleks|penjual|ruko|ndd|eco|reg|std|ez|home|sd|sameday|fasttrack|jnt|anteraja|sicepat|spx|jne|ninja|pos|paxel|from|sender|regular|reguler|tali|polynet|cheffy|plastik|wrapping|kuning|hitam|putih|merah|biru|hijau|abu|pcs|bal|pack|lembar|toros|kg|gram|food|grade|meter|roll|cm|mm|metre|strerch|film|pembungkus|makanan|waring|rambang|jaring|buah|panjang|rafia|galaksi|ikat|kuat|tebal|serbaguna|teluk|naga|shasa|salad|garuda|perempatan|gniblorajateng|gni|blora|jateng|sebelah|bank|mega|disara|coblong|imam|bonjol|sera|induk|caringin|ciparay|babakan|pamokolan|cihaurbeuti|ciamis|bandung|jakarta|mampang|prapatan|balaraja|kartawijaya|nomor|plastik|wrapping|stretch|grade|food|red|bestfr|putih|merah|biru|kuning|hitam|hijau|abu)$/i
 
 const ADDRESS_SUBSTR = ['kab.', 'kab ', 'sumedang', 'cisarua', 'purwakarta', 'gni', 'blora', 'jateng', 'perempatan', 'coblong', 'caringin', 'ciamis', 'bandung', 'mampang', 'balaraja', 'bonjol', 'ciparay', 'pamokolan', 'cihaurbeuti', 'kartawijaya', 'prapatan', 'babakan', 'imam', 'induk', 'sera', 'mega', 'sebelah', 'disara', 'nomor']
 
