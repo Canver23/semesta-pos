@@ -98,12 +98,12 @@ export function computeTokopediaDashboard(sheets: SheetInfo[]): DashboardMetrics
   const weekLabels = ['WEEK-1', 'WEEK-2', 'WEEK-3', 'WEEK-4', 'WEEK-5']
   const dayLabels = ['26', '27', '28', '29', '30', '31']
 
-  // Overall
+  // Overall (from weekly data)
   const overall = {
-    dealTransaksi: safeNum(d[12]?.[1]) + safeNum(d[12]?.[2]) + safeNum(d[12]?.[3]) + safeNum(d[12]?.[4]) + safeNum(d[12]?.[5]),
-    cancelTransaksi: safeNum(d[11]?.[1]) + safeNum(d[11]?.[2]) + safeNum(d[11]?.[3]) + safeNum(d[11]?.[4]) + safeNum(d[11]?.[5]),
-    totalTransaksi: safeNum(d[10]?.[1]) + safeNum(d[10]?.[2]) + safeNum(d[10]?.[3]) + safeNum(d[10]?.[4]) + safeNum(d[10]?.[5]),
-    qtyItem: safeNum(d[9]?.[1]) + safeNum(d[9]?.[2]) + safeNum(d[9]?.[3]) + safeNum(d[9]?.[4]) + safeNum(d[9]?.[5]),
+    dealTransaksi: safeNum(d[7]?.[1]) + safeNum(d[7]?.[2]) + safeNum(d[7]?.[3]) + safeNum(d[7]?.[4]) + safeNum(d[7]?.[5]),
+    cancelTransaksi: safeNum(d[8]?.[1]) + safeNum(d[8]?.[2]) + safeNum(d[8]?.[3]) + safeNum(d[8]?.[4]) + safeNum(d[8]?.[5]),
+    totalTransaksi: safeNum(d[9]?.[1]) + safeNum(d[9]?.[2]) + safeNum(d[9]?.[3]) + safeNum(d[9]?.[4]) + safeNum(d[9]?.[5]),
+    qtyItem: safeNum(d[10]?.[1]) + safeNum(d[10]?.[2]) + safeNum(d[10]?.[3]) + safeNum(d[10]?.[4]) + safeNum(d[10]?.[5]),
     laba: safeNum(d[15]?.[1]) + safeNum(d[15]?.[2]) + safeNum(d[15]?.[3]) + safeNum(d[15]?.[4]) + safeNum(d[15]?.[5]),
   }
 
@@ -114,12 +114,12 @@ export function computeTokopediaDashboard(sheets: SheetInfo[]): DashboardMetrics
     cancel: safeNum(d[3]?.[i + 1]),
   }))
 
-  // Weekly transaksi (row 12 = deal total, row 11 = cancel total, row 10 = qty total)
+  // Weekly transaksi (row 7 = deal, row 8 = cancel, row 10 = kuantitas total)
   const weeklyTransaksi = weekLabels.map((wl, i) => ({
     week: wl,
-    deal: safeNum(d[12]?.[i + 1]),
-    cancel: safeNum(d[11]?.[i + 1]),
-    total: safeNum(d[10]?.[i + 1]),
+    deal: safeNum(d[7]?.[i + 1]),
+    cancel: safeNum(d[8]?.[i + 1]),
+    total: safeNum(d[9]?.[i + 1]),
   }))
 
   // Laba with cumulative
@@ -150,7 +150,7 @@ export function computeTokopediaDashboard(sheets: SheetInfo[]): DashboardMetrics
   const paymentByWeek = weekLabels.map((wl, i) => ({
     week: wl,
     codTransaksi: safeNum(d[12]?.[i + 1]),
-    codQty: safeNum(d[13]?.[i + 1]),
+    codQty: safeNum(d[12]?.[i + 1]),
   }))
 
   // Qty by week (row 10)
