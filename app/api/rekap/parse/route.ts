@@ -50,11 +50,6 @@ async function extractPdfText(buffer: Buffer): Promise<string[]> {
   return pages
 }
 
-function isDuplicateLabel(a: PdfLabel, b: PdfLabel): boolean {
-  return a.recipientName.toLowerCase() === b.recipientName.toLowerCase()
-    && a.courierShort === b.courierShort
-}
-
 export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData()
@@ -86,12 +81,12 @@ export async function POST(request: NextRequest) {
           continue
         }
 
-        if (!pages.length) {
+        const fullText = pages.join('\n\n')
+
+        if (!fullText || fullText.trim().length < 10) {
           errors.push(`${file.name}: tidak ada teks (mungkin scan/gambar)`)
           continue
         }
-
-        const fullText = pages.join('\n\n')
 
         const globalMarketplace = detectGlobalMarketplace(fullText)
         let fileLabels: PdfLabel[] = []
@@ -103,24 +98,15 @@ export async function POST(request: NextRequest) {
         }
 
         if (fileLabels.length === 0) {
-          rawTexts.push(`=== ${file.name} (${pages.length} hal) JOINED ===\n${pages.join('\n---PAGE BREAK---\n').substring(0, 3000)}`)
-        }
-
-        if (fileLabels.length === 0) {
           const labels = parseLabelText(fullText)
           fileLabels = labels
         }
 
         if (fileLabels.length === 0) {
-          const samples = pages.slice(0, 5).map((p, i) =>
-            `[Hal ${i + 1}] ${p.substring(0, 500)}`
-          )
-          rawTexts.push(`=== ${file.name} (${pages.length} hal) ===\n${samples.join('\n\n')}`)
+          rawTexts.push(`=== ${file.name} (${pages.length} hal) ===\n${fullText.substring(0, 2000)}`)
           errors.push(`${file.name}: tidak ditemukan data penerima (${pages.length} halaman)`)
           continue
         }
-
-        rawTexts.push(`=== ${file.name} OK: ${fileLabels.length} label ===\n${pages[0].substring(0, 300)}`)
 
         for (const label of fileLabels) {
           if (!label.marketplace && globalMarketplace) {
