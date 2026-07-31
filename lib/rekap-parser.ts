@@ -128,6 +128,12 @@ function extractNames(lines: string[], backwardFirst: boolean, useToAddress: boo
       if (!c) continue
       if (useToAddress && /\bFROM\b/i.test(c)) break
 
+      const tokMatch = c.match(/Toko\s*Plastik\s*Semest([a-zA-Z*][a-zA-Z*\s]+)$/i)
+      if (tokMatch && tokMatch[1]) {
+        const extracted = tokMatch[1].trim()
+        if (isName(extracted)) { names.push(extracted); found = true; break }
+      }
+
       if (isName(c)) { names.push(c); found = true; break }
 
       if (useToAddress && hasDigits(c, 6)) {
@@ -140,6 +146,11 @@ function extractNames(lines: string[], backwardFirst: boolean, useToAddress: boo
       for (let j = i - 1; j >= Math.max(0, i - 10); j--) {
         const c = lines[j].trim()
         if (!c) continue
+        const tokMatch = c.match(/Toko\s*Plastik\s*Semest([a-zA-Z*][a-zA-Z*\s]+)$/i)
+        if (tokMatch && tokMatch[1]) {
+          const extracted = tokMatch[1].trim()
+          if (isName(extracted)) { names.push(extracted); break }
+        }
         if (isName(c)) { names.push(c); break }
       }
     }
