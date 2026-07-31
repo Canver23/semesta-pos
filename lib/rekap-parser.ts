@@ -28,7 +28,7 @@ function normalizeLine(line: string): string {
 function detectCourier(text: string): { name: string; short: string } | null {
   const fl = text.split('\n')[0].trim()
 
-  if (/p\s*a\s*x\s*e\s*l|paxel|TO\s*\(\s*ADDRESS\s*\)/i.test(text)) return { name: 'PAXEL', short: 'PAXEL' }
+  if (/(?:p\s*a\s*x\s*e\s*l|paxel)|TO\s*\(\s*ADDRESS\s*\)/i.test(text)) return { name: 'PAXEL', short: 'PAXEL' }
   if (/^(?:NDD|EZ)$/i.test(fl)) return { name: 'J&T', short: 'J&T' }
   if (/^(?:ECO)$/i.test(fl)) {
     if (/\bNo\s*\.?\s*Pesanan\s*:/i.test(text) || /shopee/i.test(text)) return { name: 'SPX', short: 'SPX' }
@@ -39,6 +39,7 @@ function detectCourier(text: string): { name: string; short: string } | null {
   if (/^(?:SD)$/i.test(fl)) return { name: 'AnterAja', short: 'AA' }
   if (/^(?:HOME)$/i.test(fl)) return { name: 'SPX', short: 'SPX' }
   if (/^(?:FastTrack)$/i.test(fl)) return { name: 'J&T', short: 'J&T' }
+  if (/\bSAMEDAY\b/i.test(text) && /\bTO\s*\(\s*ADDRESS\s*\)/i.test(text)) return { name: 'PAXEL', short: 'PAXEL' }
   if (/\bSAMEDAY\b/i.test(text)) return { name: 'AnterAja', short: 'AA' }
   if (/\bJY\d{8,}\b/.test(text)) return { name: 'J&T', short: 'J&T' }
   if (/\bTSA-?\d{8,}\b/.test(text)) return { name: 'SiCepat', short: 'SiCepat' }
