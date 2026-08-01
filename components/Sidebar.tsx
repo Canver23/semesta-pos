@@ -3,24 +3,25 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import {
   ShoppingCart, LayoutDashboard, Package,
-  Users, FileText, Clock, BarChart2, Upload, CloudUpload, Menu, X, LogOut, ClipboardList, Sheet,
+  Users, FileText, Clock, BarChart2, Upload, CloudUpload, Menu, X, LogOut, ClipboardList, Sheet, Camera,
 } from 'lucide-react'
 import { clsx } from 'clsx'
 import { useState, useEffect } from 'react'
 import { getSession, clearSession, type Role } from '@/lib/auth'
 
 const NAV = [
-  { href: '/',           label: 'Kasir',     icon: ShoppingCart    },
-  { href: '/dashboard',  label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/inventory',  label: 'Inventori', icon: Package         },
-  { href: '/customers',  label: 'Pelanggan', icon: Users           },
-  { href: '/invoices',   label: 'Invoice',   icon: FileText        },
-  { href: '/reports',    label: 'Laporan',   icon: BarChart2       },
-  { href: '/import',     label: 'Import',    icon: Upload          },
-  { href: '/attendance', label: 'Absensi',   icon: Clock           },
-  { href: '/migrate',    label: 'Migrasi',   icon: CloudUpload     },
-  { href: '/rekap',     label: 'Rekap',     icon: ClipboardList   },
-  { href: '/spreadsheet',label: 'Spreadsheet',icon: Sheet           },
+  { href: '/',           label: 'Kasir',      icon: ShoppingCart    },
+  { href: '/dashboard',  label: 'Dashboard',  icon: LayoutDashboard },
+  { href: '/inventory',  label: 'Inventori',  icon: Package         },
+  { href: '/customers',  label: 'Pelanggan',  icon: Users           },
+  { href: '/invoices',   label: 'Invoice',    icon: FileText        },
+  { href: '/reports',    label: 'Laporan',    icon: BarChart2       },
+  { href: '/import',     label: 'Import',     icon: Upload          },
+  { href: '/attendance', label: 'Absensi',    icon: Clock           },
+  { href: '/migrate',    label: 'Migrasi',    icon: CloudUpload     },
+  { href: '/rekap',      label: 'Rekap',      icon: ClipboardList   },
+  { href: '/spreadsheet',label: 'Spreadsheet', icon: Sheet           },
+  { href: '/foto-paket', label: 'Foto Paket',  icon: Camera          },
 ]
 
 // Bottom nav items for mobile (5 most important)

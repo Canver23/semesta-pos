@@ -1,0 +1,278 @@
+'use client'
+import { useState, useRef, useEffect, useCallback } from 'react'
+import Sidebar from '@/components/Sidebar'
+import { Camera, RotateCcw, Loader2, Check, Copy, X, Image } from 'lucide-react'
+import { useStore } from '@/lib/store'
+
+interface OcrResult {
+  resi: string
+  berat: string
+  nama: string
+  raw: string
+}
+
+interface CapturedItem {
+  id: string
+  imageDataUrl: string
+  ocr: OcrResult | null
+  timestamp: number
+}
+
+export default function FotoPaketPage() {
+  const videoRef = useRef<HTMLVideoElement>(null)
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const streamRef = useRef<MediaStream | null>(null)
+
+  const [facing, setFacing] = useState<'environment' | 'user'>('environment')
+  const [cameraReady, setCameraReady] = useState(false)
+  const [cameraError, setCameraError] = useState('')
+  const [captured, setCaptured] = useState<CapturedItem[]>([])
+  const [processingId, setProcessingId] = useState<string | null>(null)
+  const [progress, setProgress] = useState(0)
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
+  const [copiedId, setCopiedId] = useState<string | null>(null)
+
+  const startCamera = useCallback(async () => {
+    setCameraError('')
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(t => t.stop())
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: facing, width: { ideal: 1920 }, height: { ideal: 1080 } },
+        audio: false,
+      })
+      streamRef.current = stream
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream
+        await videoRef.current.play()
+      }
+      setCameraReady(true)
+    } catch (err: any) {
+      setCameraError(err.message || 'Tidak bisa mengakses kamera')
+    }
+  }, [facing])
+
+  useEffect(() => {
+    startCamera()
+    return () => { streamRef.current?.getTracks().forEach(t => t.stop()) }
+  }, [startCamera])
+
+  function toggleFacing() {
+    setFacing(f => f === 'environment' ? 'user' : 'environment')
+    setCameraReady(false)
+    setTimeout(startCamera, 200)
+  }
+
+  async function capture() {
+    const video = videoRef.current
+    const canvas = canvasRef.current
+    if (!video || !canvas || !cameraReady) return
+
+    canvas.width = video.videoWidth
+    canvas.height = video.videoHeight
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+    ctx.drawImage(video, 0, 0)
+
+    const imageDataUrl = canvas.toDataURL('image/jpeg', 0.85)
+    const id = String(Date.now())
+    const item: CapturedItem = { id, imageDataUrl, ocr: null, timestamp: Date.now() }
+    setCaptured(prev => [item, ...prev])
+
+    setProcessingId(id)
+    setProgress(0)
+
+    try {
+      const Tesseract = (await import('tesseract.js')).default
+      const worker = await Tesseract.createWorker('eng+ind', 1, {
+        logger: (m: any) => { if (m.status === 'recognizing text') setProgress(Math.round(m.progress * 100)) },
+      })
+
+      const { data } = await worker.recognize(imageDataUrl)
+      await worker.terminate()
+
+      const text = data.text
+      const ocr = parseOcr(text)
+
+      setCaptured(prev => prev.map(c => c.id === id ? { ...c, ocr } : c))
+    } catch (err) {
+      console.error('OCR error:', err)
+    } finally {
+      setProcessingId(null)
+    }
+  }
+
+  function parseOcr(text: string): OcrResult {
+    let resi = ''
+    let berat = ''
+    let nama = ''
+
+    const resiPatterns = [
+      /No\.?\s*(?:Resi|resi)\s*:?\s*(\w[\w-]{8,})/i,
+      /(?:SPXID|JYO|CM|TSA)[A-Z0-9-]{8,}/i,
+      /\b(\d{10,})\b/,
+    ]
+    for (const p of resiPatterns) {
+      const m = text.match(p)
+      if (m) { resi = m[1] || m[0]; break }
+    }
+
+    const beratPatterns = [
+      /(?:Berat|berat)\s*:?\s*(\d[\d.,]*\s*(?:gr|kg|gram|Kg|KG))/i,
+      /(\d[\d.,]*\s*(?:gr|kg|gram))/i,
+    ]
+    for (const p of beratPatterns) {
+      const m = text.match(p)
+      if (m) { berat = m[1]; break }
+    }
+
+    const namaPatterns = [
+      /Penerima\s*:?\s*(.+)/i,
+      /(?:Kepada|Nama)\s*:?\s*(.+)/i,
+    ]
+    for (const p of namaPatterns) {
+      const m = text.match(p)
+      if (m) { nama = m[1].trim().split(/[\n\r,]/)[0].trim(); break }
+    }
+
+    return { resi, berat, nama, raw: text.substring(0, 300) }
+  }
+
+  function toggleCollapse(id: string) {
+    setCollapsed(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id); else next.add(id)
+      return next
+    })
+  }
+
+  async function handleCopy(text: string, id: string) {
+    await navigator.clipboard.writeText(text)
+    setCopiedId(id)
+    setTimeout(() => setCopiedId(null), 1500)
+  }
+
+  function formatOneLine(item: CapturedItem): string {
+    const o = item.ocr
+    if (!o) return ''
+    const parts: string[] = []
+    if (o.resi) parts.push(o.resi)
+    if (o.nama) parts.push(o.nama)
+    if (o.berat) parts.push(o.berat)
+    return parts.join(' | ')
+  }
+
+  async function copyAll() {
+    const lines = captured.map(c => formatOneLine(c)).filter(Boolean).join('\n')
+    await navigator.clipboard.writeText(lines)
+  }
+
+  return (
+    <div className="flex min-h-screen">
+      <Sidebar />
+      <main className="flex-1 md:ml-0">
+        <div className="pt-14 md:pt-0 pb-16 md:pb-0 px-4 md:px-6 py-6 max-w-4xl mx-auto">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h1 className="text-xl font-semibold text-gray-800">Foto Paket</h1>
+              <p className="text-sm text-gray-400 mt-0.5">Capture paket — OCR auto baca resi, berat, nama penerima</p>
+            </div>
+          </div>
+
+          <div className="card mb-6 overflow-hidden p-0">
+            {cameraError ? (
+              <div className="p-8 text-center">
+                <p className="text-sm text-red-500 mb-2">{cameraError}</p>
+                <button onClick={startCamera} className="btn-ghost btn-sm">Coba Lagi</button>
+              </div>
+            ) : (
+              <div className="relative bg-black aspect-[4/3]">
+                <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-contain" />
+                <canvas ref={canvasRef} className="hidden" />
+
+                {cameraReady && (
+                  <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-3">
+                    <button onClick={capture} className="w-16 h-16 rounded-full bg-white/90 shadow-lg flex items-center justify-center hover:bg-white transition active:scale-95">
+                      <div className="w-14 h-14 rounded-full border-4 border-brand-400" />
+                    </button>
+                  </div>
+                )}
+
+                <button onClick={toggleFacing} className="absolute top-3 right-3 w-10 h-10 rounded-full bg-white/80 shadow flex items-center justify-center hover:bg-white transition">
+                  <RotateCcw size={16} />
+                </button>
+
+                {!cameraReady && !cameraError && (
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <Loader2 size={32} className="animate-spin text-white" />
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {captured.length > 0 && (
+            <>
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-sm text-gray-500">{captured.length} foto diambil</p>
+                <button onClick={copyAll} className="btn-ghost btn-sm"><Copy size={14} /> Copy Semua</button>
+              </div>
+
+              <div className="space-y-4">
+                {captured.map((item) => {
+                  const isProcessing = processingId === item.id
+                  const isCollapsed = collapsed.has(item.id)
+
+                  return (
+                    <div key={item.id} className="card">
+                      <div className="flex gap-4">
+                        <img src={item.imageDataUrl} className="w-24 h-24 object-cover rounded-lg border shrink-0" alt="captured" />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start justify-between gap-2">
+                            <div>
+                              {isProcessing ? (
+                                <div className="flex items-center gap-2 text-sm text-brand-600">
+                                  <Loader2 size={14} className="animate-spin" /> OCR... {progress}%
+                                </div>
+                              ) : item.ocr ? (
+                                <div className="space-y-1">
+                                  {item.ocr.resi && <p className="text-xs"><span className="text-gray-400">Resi:</span> <span className="font-mono">{item.ocr.resi}</span></p>}
+                                  {item.ocr.berat && <p className="text-xs"><span className="text-gray-400">Berat:</span> {item.ocr.berat}</p>}
+                                  {item.ocr.nama && <p className="text-xs"><span className="text-gray-400">Nama:</span> {item.ocr.nama}</p>}
+                                  {!item.ocr.resi && !item.ocr.berat && !item.ocr.nama && <p className="text-xs text-red-400">Tidak dapat membaca teks</p>}
+                                </div>
+                              ) : (
+                                <p className="text-xs text-gray-300">Menunggu OCR...</p>
+                              )}
+                            </div>
+                            {item.ocr && (
+                              <button onClick={() => handleCopy(formatOneLine(item), item.id)} className="btn-ghost btn-sm shrink-0">
+                                {copiedId === item.id ? <Check size={14} className="text-green-500" /> : <Copy size={14} />}
+                              </button>
+                            )}
+                          </div>
+
+                          {item.ocr && (
+                            <button onClick={() => toggleCollapse(item.id)} className="text-xs text-gray-400 mt-2 hover:underline">
+                              {isCollapsed ? 'Tutup raw text' : 'Lihat raw text'}
+                            </button>
+                          )}
+                          {isCollapsed && item.ocr && (
+                            <pre className="mt-2 text-[10px] text-gray-400 bg-gray-50 p-2 rounded max-h-32 overflow-auto whitespace-pre-wrap">
+                              {item.ocr.raw}
+                            </pre>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </>
+          )}
+        </div>
+      </main>
+    </div>
+  )
+}
