@@ -88,3 +88,13 @@ create policy "allow_all_customers"         on customers         for all using (
 create policy "allow_all_invoices"          on invoices          for all using (true) with check (true);
 create policy "allow_all_transactions"      on transactions      for all using (true) with check (true);
 create policy "allow_all_attendance"        on attendance        for all using (true) with check (true);
+
+-- ── Storage bucket untuk foto paket ────────────────────────
+-- Buka Supabase Dashboard → Storage → New Bucket → nama: semesta-pos
+-- Lalu jalankan SQL ini untuk set policy public:
+-- insert into storage.buckets (id, name, public) values ('semesta-pos', 'semesta-pos', true)
+--   on conflict (id) do nothing;
+
+-- Policy: allow all uploads
+-- CREATE POLICY "allow_all_uploads" ON storage.objects FOR INSERT WITH CHECK (bucket_id = 'semesta-pos');
+-- CREATE POLICY "allow_all_reads" ON storage.objects FOR SELECT USING (bucket_id = 'semesta-pos');
