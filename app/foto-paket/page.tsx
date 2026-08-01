@@ -1,8 +1,7 @@
 'use client'
 import { useState, useRef, useEffect, useCallback } from 'react'
 import Sidebar from '@/components/Sidebar'
-import { Camera, RotateCcw, Loader2, Check, Copy, X, Image } from 'lucide-react'
-import { useStore } from '@/lib/store'
+import { Camera, RotateCcw, Loader2, Check, Copy, X, Edit3, Save } from 'lucide-react'
 
 interface OcrResult {
   resi: string
@@ -31,140 +30,91 @@ export default function FotoPaketPage() {
   const [progress, setProgress] = useState(0)
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
   const [copiedId, setCopiedId] = useState<string | null>(null)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editResi, setEditResi] = useState('')
+  const [editBerat, setEditBerat] = useState('')
+  const [editNama, setEditNama] = useState('')
 
   const startCamera = useCallback(async () => {
     setCameraError('')
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach(t => t.stop())
-    }
+    if (streamRef.current) streamRef.current.getTracks().forEach(t => t.stop())
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: facing, width: { ideal: 1920 }, height: { ideal: 1080 } },
-        audio: false,
+        video: { facingMode: facing, width: { ideal: 1920 }, height: { ideal: 1080 } }, audio: false,
       })
       streamRef.current = stream
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream
-        await videoRef.current.play()
-      }
+      if (videoRef.current) { videoRef.current.srcObject = stream; await videoRef.current.play() }
       setCameraReady(true)
-    } catch (err: any) {
-      setCameraError(err.message || 'Tidak bisa mengakses kamera')
-    }
+    } catch (err: any) { setCameraError(err.message || 'Tidak bisa mengakses kamera') }
   }, [facing])
 
-  useEffect(() => {
-    startCamera()
-    return () => { streamRef.current?.getTracks().forEach(t => t.stop()) }
-  }, [startCamera])
+  useEffect(() => { startCamera(); return () => { streamRef.current?.getTracks().forEach(t => t.stop()) } }, [startCamera])
 
-  function toggleFacing() {
-    setFacing(f => f === 'environment' ? 'user' : 'environment')
-    setCameraReady(false)
-    setTimeout(startCamera, 200)
-  }
+  function toggleFacing() { setFacing(f => f === 'environment' ? 'user' : 'environment'); setCameraReady(false); setTimeout(startCamera, 200) }
 
   async function capture() {
-    const video = videoRef.current
-    const canvas = canvasRef.current
+    const video = videoRef.current; const canvas = canvasRef.current
     if (!video || !canvas || !cameraReady) return
-
-    canvas.width = video.videoWidth
-    canvas.height = video.videoHeight
-    const ctx = canvas.getContext('2d')
-    if (!ctx) return
+    canvas.width = video.videoWidth; canvas.height = video.videoHeight
+    const ctx = canvas.getContext('2d'); if (!ctx) return
     ctx.drawImage(video, 0, 0)
-
     const imageDataUrl = canvas.toDataURL('image/jpeg', 0.85)
     const id = String(Date.now())
-    const item: CapturedItem = { id, imageDataUrl, ocr: null, timestamp: Date.now() }
-    setCaptured(prev => [item, ...prev])
-
-    setProcessingId(id)
-    setProgress(0)
-
+    setCaptured(prev => [{ id, imageDataUrl, ocr: null, timestamp: Date.now() }, ...prev])
+    setProcessingId(id); setProgress(0)
     try {
       const Tesseract = (await import('tesseract.js')).default
       const worker = await Tesseract.createWorker('eng+ind', 1, {
         logger: (m: any) => { if (m.status === 'recognizing text') setProgress(Math.round(m.progress * 100)) },
       })
-
       const { data } = await worker.recognize(imageDataUrl)
       await worker.terminate()
-
-      const text = data.text
-      const ocr = parseOcr(text)
-
+      const ocr = parseOcr(data.text)
       setCaptured(prev => prev.map(c => c.id === id ? { ...c, ocr } : c))
-    } catch (err) {
-      console.error('OCR error:', err)
-    } finally {
-      setProcessingId(null)
-    }
+    } catch (_) {} finally { setProcessingId(null) }
   }
 
   function parseOcr(text: string): OcrResult {
-    let resi = ''
-    let berat = ''
-    let nama = ''
-
-    const resiPatterns = [
-      /No\.?\s*(?:Resi|resi)\s*:?\s*(\w[\w-]{8,})/i,
-      /(?:SPXID|JYO|CM|TSA)[A-Z0-9-]{8,}/i,
-      /\b(\d{10,})\b/,
-    ]
-    for (const p of resiPatterns) {
-      const m = text.match(p)
-      if (m) { resi = m[1] || m[0]; break }
-    }
-
-    const beratPatterns = [
-      /(?:Berat|berat)\s*:?\s*(\d[\d.,]*\s*(?:gr|kg|gram|Kg|KG))/i,
-      /(\d[\d.,]*\s*(?:gr|kg|gram))/i,
-    ]
-    for (const p of beratPatterns) {
-      const m = text.match(p)
-      if (m) { berat = m[1]; break }
-    }
-
-    const namaPatterns = [
-      /Penerima\s*:?\s*(.+)/i,
-      /(?:Kepada|Nama)\s*:?\s*(.+)/i,
-    ]
-    for (const p of namaPatterns) {
-      const m = text.match(p)
-      if (m) { nama = m[1].trim().split(/[\n\r,]/)[0].trim(); break }
-    }
-
+    let resi = '', berat = '', nama = ''
+    const resiPats = [/No\.?\s*(?:Resi|resi)\s*:?\s*(\w[\w-]{8,})/i, /(?:SPXID|JYO|CM|TSA|JY)[A-Z0-9-]{8,}/i, /\b(\d{10,})\b/]
+    for (const p of resiPats) { const m = text.match(p); if (m) { resi = m[1] || m[0]; break } }
+    const beratPats = [/(?:Berat|berat)\s*:?\s*(\d[\d.,]*\s*(?:gr|kg|gram|Kg|KG))/i, /(\d[\d.,]*\s*(?:gr|kg|gram))/i]
+    for (const p of beratPats) { const m = text.match(p); if (m) { berat = m[1]; break } }
+    const namaPats = [/Penerima\s*:?\s*(.+)/i, /(?:Kepada|Nama)\s*:?\s*(.+)/i]
+    for (const p of namaPats) { const m = text.match(p); if (m) { nama = m[1].trim().split(/[\n\r,]/)[0].trim(); break } }
     return { resi, berat, nama, raw: text.substring(0, 300) }
   }
 
+  function startEdit(item: CapturedItem) {
+    const o = item.ocr || { resi: '', berat: '', nama: '', raw: '' }
+    setEditingId(item.id)
+    setEditResi(o.resi)
+    setEditBerat(o.berat)
+    setEditNama(o.nama)
+  }
+
+  function saveEdit(id: string) {
+    setCaptured(prev => prev.map(c => {
+      if (c.id !== id) return c
+      const ocr = c.ocr || { resi: '', berat: '', nama: '', raw: '' }
+      return { ...c, ocr: { ...ocr, resi: editResi, berat: editBerat, nama: editNama } }
+    }))
+    setEditingId(null)
+  }
+
   function toggleCollapse(id: string) {
-    setCollapsed(prev => {
-      const next = new Set(prev)
-      if (next.has(id)) next.delete(id); else next.add(id)
-      return next
-    })
+    setCollapsed(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n })
   }
-
-  async function handleCopy(text: string, id: string) {
-    await navigator.clipboard.writeText(text)
-    setCopiedId(id)
-    setTimeout(() => setCopiedId(null), 1500)
-  }
-
-  function formatOneLine(item: CapturedItem): string {
-    const o = item.ocr
-    if (!o) return ''
+  async function handleCopy(text: string, id: string) { await navigator.clipboard.writeText(text); setCopiedId(id); setTimeout(() => setCopiedId(null), 1500) }
+  function formatOneLine(o: OcrResult): string {
     const parts: string[] = []
     if (o.resi) parts.push(o.resi)
     if (o.nama) parts.push(o.nama)
     if (o.berat) parts.push(o.berat)
     return parts.join(' | ')
   }
-
   async function copyAll() {
-    const lines = captured.map(c => formatOneLine(c)).filter(Boolean).join('\n')
+    const lines = captured.map(c => c.ocr ? formatOneLine(c.ocr) : '').filter(Boolean).join('\n')
     await navigator.clipboard.writeText(lines)
   }
 
@@ -182,15 +132,11 @@ export default function FotoPaketPage() {
 
           <div className="card mb-6 overflow-hidden p-0">
             {cameraError ? (
-              <div className="p-8 text-center">
-                <p className="text-sm text-red-500 mb-2">{cameraError}</p>
-                <button onClick={startCamera} className="btn-ghost btn-sm">Coba Lagi</button>
-              </div>
+              <div className="p-8 text-center"><p className="text-sm text-red-500 mb-2">{cameraError}</p><button onClick={startCamera} className="btn-ghost btn-sm">Coba Lagi</button></div>
             ) : (
               <div className="relative bg-black aspect-[4/3]">
                 <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-contain" />
                 <canvas ref={canvasRef} className="hidden" />
-
                 {cameraReady && (
                   <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-3">
                     <button onClick={capture} className="w-16 h-16 rounded-full bg-white/90 shadow-lg flex items-center justify-center hover:bg-white transition active:scale-95">
@@ -198,16 +144,8 @@ export default function FotoPaketPage() {
                     </button>
                   </div>
                 )}
-
-                <button onClick={toggleFacing} className="absolute top-3 right-3 w-10 h-10 rounded-full bg-white/80 shadow flex items-center justify-center hover:bg-white transition">
-                  <RotateCcw size={16} />
-                </button>
-
-                {!cameraReady && !cameraError && (
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <Loader2 size={32} className="animate-spin text-white" />
-                  </div>
-                )}
+                <button onClick={toggleFacing} className="absolute top-3 right-3 w-10 h-10 rounded-full bg-white/80 shadow flex items-center justify-center hover:bg-white transition"><RotateCcw size={16} /></button>
+                {!cameraReady && !cameraError && <div className="absolute inset-0 flex items-center justify-center"><Loader2 size={32} className="animate-spin text-white" /></div>}
               </div>
             )}
           </div>
@@ -223,45 +161,60 @@ export default function FotoPaketPage() {
                 {captured.map((item) => {
                   const isProcessing = processingId === item.id
                   const isCollapsed = collapsed.has(item.id)
+                  const isEditing = editingId === item.id
+                  const o = item.ocr
 
                   return (
                     <div key={item.id} className="card">
                       <div className="flex gap-4">
                         <img src={item.imageDataUrl} className="w-24 h-24 object-cover rounded-lg border shrink-0" alt="captured" />
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-start justify-between gap-2">
-                            <div>
-                              {isProcessing ? (
-                                <div className="flex items-center gap-2 text-sm text-brand-600">
-                                  <Loader2 size={14} className="animate-spin" /> OCR... {progress}%
+                          {isProcessing ? (
+                            <div className="flex items-center gap-2 text-sm text-brand-600"><Loader2 size={14} className="animate-spin" /> OCR... {progress}%</div>
+                          ) : o ? (
+                            isEditing ? (
+                              <div className="space-y-2">
+                                <div>
+                                  <label className="text-[10px] text-gray-400 block">Resi</label>
+                                  <input value={editResi} onChange={e => setEditResi(e.target.value)} className="w-full px-2 py-1 text-xs border rounded" />
                                 </div>
-                              ) : item.ocr ? (
-                                <div className="space-y-1">
-                                  {item.ocr.resi && <p className="text-xs"><span className="text-gray-400">Resi:</span> <span className="font-mono">{item.ocr.resi}</span></p>}
-                                  {item.ocr.berat && <p className="text-xs"><span className="text-gray-400">Berat:</span> {item.ocr.berat}</p>}
-                                  {item.ocr.nama && <p className="text-xs"><span className="text-gray-400">Nama:</span> {item.ocr.nama}</p>}
-                                  {!item.ocr.resi && !item.ocr.berat && !item.ocr.nama && <p className="text-xs text-red-400">Tidak dapat membaca teks</p>}
+                                <div>
+                                  <label className="text-[10px] text-gray-400 block">Berat</label>
+                                  <input value={editBerat} onChange={e => setEditBerat(e.target.value)} className="w-full px-2 py-1 text-xs border rounded" />
                                 </div>
-                              ) : (
-                                <p className="text-xs text-gray-300">Menunggu OCR...</p>
-                              )}
-                            </div>
-                            {item.ocr && (
-                              <button onClick={() => handleCopy(formatOneLine(item), item.id)} className="btn-ghost btn-sm shrink-0">
-                                {copiedId === item.id ? <Check size={14} className="text-green-500" /> : <Copy size={14} />}
-                              </button>
-                            )}
-                          </div>
-
-                          {item.ocr && (
-                            <button onClick={() => toggleCollapse(item.id)} className="text-xs text-gray-400 mt-2 hover:underline">
-                              {isCollapsed ? 'Tutup raw text' : 'Lihat raw text'}
-                            </button>
-                          )}
-                          {isCollapsed && item.ocr && (
-                            <pre className="mt-2 text-[10px] text-gray-400 bg-gray-50 p-2 rounded max-h-32 overflow-auto whitespace-pre-wrap">
-                              {item.ocr.raw}
-                            </pre>
+                                <div>
+                                  <label className="text-[10px] text-gray-400 block">Nama</label>
+                                  <input value={editNama} onChange={e => setEditNama(e.target.value)} className="w-full px-2 py-1 text-xs border rounded" />
+                                </div>
+                                <div className="flex gap-2 mt-1">
+                                  <button onClick={() => saveEdit(item.id)} className="btn-blue btn-sm"><Save size={12} /> Simpan</button>
+                                  <button onClick={() => setEditingId(null)} className="btn-ghost btn-sm"><X size={12} /> Batal</button>
+                                </div>
+                              </div>
+                            ) : (
+                              <div>
+                                <div className="flex items-start justify-between gap-2">
+                                  <div className="space-y-1">
+                                    {o.resi && <p className="text-xs"><span className="text-gray-400">Resi:</span> <span className="font-mono">{o.resi}</span></p>}
+                                    {o.berat && <p className="text-xs"><span className="text-gray-400">Berat:</span> {o.berat}</p>}
+                                    {o.nama && <p className="text-xs"><span className="text-gray-400">Nama:</span> {o.nama}</p>}
+                                    {!o.resi && !o.berat && !o.nama && <p className="text-xs text-red-400">Tidak dapat membaca teks</p>}
+                                  </div>
+                                  <div className="flex gap-1 shrink-0">
+                                    <button onClick={() => startEdit(item)} className="btn-ghost btn-sm" title="Edit"><Edit3 size={13} /></button>
+                                    <button onClick={() => handleCopy(formatOneLine(o), item.id)} className="btn-ghost btn-sm" title="Copy">
+                                      {copiedId === item.id ? <Check size={12} className="text-green-500" /> : <Copy size={12} />}
+                                    </button>
+                                  </div>
+                                </div>
+                                <button onClick={() => toggleCollapse(item.id)} className="text-xs text-gray-400 mt-2 hover:underline">
+                                  {isCollapsed ? 'Tutup raw text' : 'Lihat raw text'}
+                                </button>
+                                {isCollapsed && <pre className="mt-2 text-[10px] text-gray-400 bg-gray-50 p-2 rounded max-h-32 overflow-auto whitespace-pre-wrap">{o.raw}</pre>}
+                              </div>
+                            )
+                          ) : (
+                            <p className="text-xs text-gray-300">Menunggu OCR...</p>
                           )}
                         </div>
                       </div>
