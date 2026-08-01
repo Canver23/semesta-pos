@@ -68,66 +68,26 @@ export default function FotoPaketPage() {
   function parseOcr(text: string): OcrResult {
     let resi = '', berat = '', nama = ''
 
-    // RESI - prioritas tinggi: kode resi spesifik per kurir
-    const resiPatterns = [
-      // SPX ID
-      /\b(SPX[A-Z]*\s*ID\d{10,})\b/i,
-      // J&T: JY + 10 digit, JT + digit
-      /\b(JY\d{10,})\b/i,
-      // JNE: CM + 10+ digit  
-      /\b(CM\d{10,})\b/i,
-      // SiCepat: TSA + digit
-      /\b(TSA-?\d{8,})\b/i,
-      // AnterAja: 12+ digit berdekatan dgn "No. Resi"
-      /No\.?\s*Resi\s*:?\s*(\d{12,})\b/i,
-      // CASHLESS resi
-      /CASHLESS.*?(\d{12,})/i,
-      // Generic: No. Resi: xxxxx
-      /No\.?\s*(?:Resi|resi)\s*:?\s*([A-Za-z0-9-]{8,})/i,
-      // Generic: resi panjang 10+ digit
-      /\b(\d{12,})\b/,
-    ]
-    for (const p of resiPatterns) {
-      const m = text.match(p)
-      if (m) { resi = (m[1] || m[0]).replace(/\s+/g, ''); break }
+    // Clean: remove spaces between single chars (S P X → SPX)
+    const clean = text.replace(/\b(\w)(\s+)(\w)\b/g, (_, a, _s, b) => a + b)
+
+    // RESI
+    const resiM = clean.match(/(?:SPX[A-Za-z]*\s*ID\d{10,}|JY\d{10,}|CM\d{10,}|TSA-?\d{8,}|\b\d{12,}\b)/i)
+    if (resiM) resi = resiM[0].replace(/\s+/g, '')
+    if (!resi) {
+      const noResi = clean.match(/No\.?\s*Resi\s*:?\s*([\w-]{8,})/i)
+      if (noResi) resi = noResi[1].replace(/\s+/g, '')
     }
 
-    // BERAT - prioritas ke angka yang berdiri sendiri dekat "Berat" atau "gr"/"kg"
-    const beratPatterns = [
-      // Berat: xxx gr
-      /(?:Berat|berat|Berat\s*Kirim|Batas\s*Kirim).*?(\d[\d.,]*)\s*(?:gr|gram|GR|Gram|Kg|KG|kg)\b/i,
-      // Batas Kirim diikuti berat di baris yang sama
-      /Batas\s*Kirim.*?(\d[\d.,]*)\s*(?:gr|gram|GR)\b/i,
-      // Angka berdiri sendiri dekat gr
-      /(\d[\d.,]{0,4})\s*(?:gr|gram|GR)\b/i,
-    ]
-    for (const p of beratPatterns) {
-      const m = text.match(p)
-      if (m && m[1]) {
-        const w = m[1].replace(/,/g, '')
-        if (parseFloat(w) > 0) { berat = w + ' gr'; break }
-      }
-    }
+    // BERAT
+    const beratM = clean.match(/(\d{1,5})\s*(?:gr|gram|Gr|GR|kg|KG|Kg|Gram)\b/i)
+    if (beratM) berat = beratM[1] + ' gr'
 
-    // NAMA PENERIMA
-    const namaPatterns = [
-      // Penerima: Nama
-      /Penerima\s*:?\s*(.+)/i,
-      // Nama di baris setelah "Penerima:" kosong
-      /Penerima\s*:?\s*\n\s*([A-Za-z*][\w\s*]{2,40})/i,
-      // Kepada: Nama
-      /(?:Kepada|Nama\s*Penerima)\s*:?\s*(.+)/i,
-    ]
-    for (const p of namaPatterns) {
-      const m = text.match(p)
-      if (m && m[1]) {
-        const raw = m[1].trim().split(/[\n\r,]/)[0].trim()
-        // Skip kalau nomor telepon
-        if (!/^\d{6,}$/.test(raw) && !/^\+?62\d+$/.test(raw.replace(/\D/g, ''))) {
-          nama = raw.replace(/\s{2,}/g, ' ')
-          break
-        }
-      }
+    // NAMA
+    const namaM = clean.match(/Penerima\s*:?\s*(.+)/i)
+    if (namaM) {
+      const raw = namaM[1].trim().split(/[\n\r]+/)[0].trim()
+      if (raw.length >= 2 && !/^\d{6,}$/.test(raw)) nama = raw
     }
 
     return { resi, berat, nama, raw: text.substring(0, 500) }
