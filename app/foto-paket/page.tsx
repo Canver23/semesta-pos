@@ -15,6 +15,8 @@ interface CapturedItem {
   imageDataUrl: string
   ocr: OcrResult | null
   timestamp: number
+  uploaded: boolean
+  uploadUrl: string
 }
 
 export default function FotoPaketPage() {
@@ -34,6 +36,21 @@ export default function FotoPaketPage() {
   const [editResi, setEditResi] = useState('')
   const [editBerat, setEditBerat] = useState('')
   const [editNama, setEditNama] = useState('')
+  const [uploadingId, setUploadingId] = useState<string | null>(null)
+
+  async function uploadToServer(item: CapturedItem) {
+    setUploadingId(item.id)
+    try {
+      const res = await fetch('/api/foto-paket/upload', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ imageDataUrl: item.imageDataUrl }),
+      })
+      const data = await res.json()
+      if (data.url) {
+        setCaptured(prev => prev.map(c => c.id === item.id ? { ...c, uploaded: true, uploadUrl: data.url } : c))
+      }
+    } catch (_) {} finally { setUploadingId(null) }
+  }
 
   const startCamera = useCallback(async () => {
     setCameraError('')
@@ -60,7 +77,7 @@ export default function FotoPaketPage() {
     ctx.drawImage(video, 0, 0)
     const imageDataUrl = canvas.toDataURL('image/jpeg', 0.85)
     const id = String(Date.now())
-    setCaptured(prev => [{ id, imageDataUrl, ocr: null, timestamp: Date.now() }, ...prev])
+    setCaptured(prev => [{ id, imageDataUrl, ocr: null, timestamp: Date.now(), uploaded: false, uploadUrl: '' }, ...prev])
     setProcessingId(id); setProgress(0)
     try {
       const Tesseract = (await import('tesseract.js')).default
@@ -200,12 +217,24 @@ export default function FotoPaketPage() {
                                     {o.nama && <p className="text-xs"><span className="text-gray-400">Nama:</span> {o.nama}</p>}
                                     {!o.resi && !o.berat && !o.nama && <p className="text-xs text-red-400">Tidak dapat membaca teks</p>}
                                   </div>
-                                  <div className="flex gap-1 shrink-0">
-                                    <button onClick={() => startEdit(item)} className="btn-ghost btn-sm" title="Edit"><Edit3 size={13} /></button>
-                                    <button onClick={() => handleCopy(formatOneLine(o), item.id)} className="btn-ghost btn-sm" title="Copy">
-                                      {copiedId === item.id ? <Check size={12} className="text-green-500" /> : <Copy size={12} />}
-                                    </button>
-                                  </div>
+                                   <div className="flex gap-1 shrink-0">
+                                     <button onClick={() => startEdit(item)} className="btn-ghost btn-sm" title="Edit"><Edit3 size={13} /></button>
+                                     <button onClick={() => handleCopy(formatOneLine(o), item.id)} className="btn-ghost btn-sm" title="Copy">
+                                       {copiedId === item.id ? <Check size={12} className="text-green-500" /> : <Copy size={12} />}
+                                     </button>
+                                     {item.uploaded ? (
+                                       <span className="text-green-500 text-[10px] px-1 py-0.5" title="Tersimpan">✓</span>
+                                     ) : (
+                                       <button
+                                         onClick={() => uploadToServer(item)}
+                                         disabled={uploadingId === item.id}
+                                         className="btn-ghost btn-sm text-blue-500 text-[10px]"
+                                         title="Simpan ke server"
+                                       >
+                                         {uploadingId === item.id ? <Loader2 size={12} className="animate-spin" /> : 'Simpan'}
+                                       </button>
+                                     )}
+                                   </div>
                                 </div>
                                 <button onClick={() => toggleCollapse(item.id)} className="text-xs text-gray-400 mt-2 hover:underline">
                                   {isCollapsed ? 'Tutup raw text' : 'Lihat raw text'}
