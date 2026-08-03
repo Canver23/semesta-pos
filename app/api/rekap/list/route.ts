@@ -14,13 +14,14 @@ export async function GET(request: NextRequest) {
     const { data, error } = await supabase
       .from('rekap_paket')
       .select('*')
-      .order('created_at', { ascending: false })
+      .order('id', { ascending: false })
 
     if (error) {
+      console.error('List rekap error:', error)
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
-    return NextResponse.json({ success: true, data })
+    return NextResponse.json({ success: true, data, count: data?.length ?? 0 })
   } catch (err: any) {
     console.error('List rekap error:', err)
     return NextResponse.json({ error: 'Terjadi kesalahan server' }, { status: 500 })
