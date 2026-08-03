@@ -25,10 +25,20 @@ export default function RekapPage() {
     try { return JSON.parse(localStorage.getItem('semesta-foto-paket') || '[]') } catch (_) { return [] }
   }
 
-  function applyFotoMatch(labels: LabelData[]): { groups: CourierGroup[]; summary: Summary } {
-    const fotos = loadFotoData()
+  async function loadFotoDataServer(): Promise<FotoData[]> {
+    try {
+      const res = await fetch('/api/foto-paket/list')
+      const data = await res.json()
+      if (data.success && data.data) {
+        return data.data.map((r: any) => ({ id: String(r.id), ocr: { resi: r.resi || '', nama: r.nama || '' } }))
+      }
+    } catch (_) {}
+    return []
+  }
+
+  function applyFotoMatch(labels: LabelData[], fotoData: FotoData[]): { groups: CourierGroup[]; summary: Summary } {
     const resiToNama = new Map<string, string>()
-    for (const f of fotos) {
+    for (const f of fotoData) {
       const r = f.ocr?.resi?.trim()
       const n = f.ocr?.nama?.trim()
       if (r && n) resiToNama.set(r.toUpperCase(), n)
@@ -91,7 +101,8 @@ export default function RekapPage() {
       if (data.fileErrors) setFileErrors(data.fileErrors)
 
       const labels: LabelData[] = data.labels || []
-      const result = applyFotoMatch(labels)
+      const [localFotos, serverFotos] = await Promise.all([Promise.resolve(loadFotoData()), loadFotoDataServer()])
+      const result = applyFotoMatch(labels, [...localFotos, ...serverFotos])
       setGroups(result.groups)
       setSummary(result.summary)
     } catch { setError('Gagal terhubung ke server') }

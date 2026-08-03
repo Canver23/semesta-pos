@@ -152,8 +152,9 @@ export default function FotoPaketPage() {
 
   async function uploadToServer(item: CapturedItem) {
     setUploadingId(item.id)
+    const o = item.ocr || { ekspedisi: '', resi: '', berat: '', nama: '', raw: '' }
     try {
-      const res = await fetch('/api/foto-paket/upload', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ imageDataUrl: item.imageDataUrl }) })
+      const res = await fetch('/api/foto-paket/upload', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ imageDataUrl: item.imageDataUrl, ekspedisi: o.ekspedisi, resi: o.resi, berat: o.berat, nama: o.nama }) })
       const data = await res.json()
       if (data.url) {
         setCaptured(prev => {

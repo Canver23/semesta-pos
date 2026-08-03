@@ -3,7 +3,7 @@ import { createClient } from '@supabase/supabase-js'
 
 export async function POST(request: NextRequest) {
   try {
-    const { imageDataUrl } = await request.json()
+    const { imageDataUrl, ekspedisi, resi, berat, nama } = await request.json()
 
     if (!imageDataUrl || !imageDataUrl.startsWith('data:image/')) {
       return NextResponse.json({ error: 'Invalid image data' }, { status: 400 })
@@ -16,9 +16,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Supabase not configured' }, { status: 500 })
     }
 
-    const supabase = createClient(supabaseUrl, supabaseKey, {
-      auth: { persistSession: false },
-    })
+    const supabase = createClient(supabaseUrl, supabaseKey, { auth: { persistSession: false } })
 
     const base64 = imageDataUrl.replace(/^data:image\/\w+;base64,/, '')
     const buf = Buffer.from(base64, 'base64')
@@ -26,21 +24,28 @@ export async function POST(request: NextRequest) {
     const fileName = `paket-${Date.now()}.jpg`
     const filePath = `foto-paket/${fileName}`
 
-    const { data, error } = await supabase.storage
+    const { error: upErr } = await supabase.storage
       .from('semesta-pos')
-      .upload(filePath, buf, {
-        contentType: 'image/jpeg',
-        upsert: false,
-      })
+      .upload(filePath, buf, { contentType: 'image/jpeg', upsert: false })
 
-    if (error) {
-      console.error('Upload error:', error)
-      return NextResponse.json({ error: 'Gagal upload: ' + error.message }, { status: 500 })
+    if (upErr) {
+      console.error('Upload error:', upErr)
+      return NextResponse.json({ error: 'Gagal upload: ' + upErr.message }, { status: 500 })
     }
 
     const { data: { publicUrl } } = supabase.storage
       .from('semesta-pos')
       .getPublicUrl(filePath)
+
+    // Simpan metadata ke tabel foto_paket
+    const { error: insErr } = await supabase
+      .from('foto_paket')
+      .insert({ resi: resi || '', nama: nama || '', berat: berat || '', ekspedisi: ekspedisi || '', photo_url: publicUrl })
+
+    if (insErr) {
+      console.error('Insert error:', insErr)
+      return NextResponse.json({ error: 'Gagal simpan data: ' + insErr.message }, { status: 500 })
+    }
 
     return NextResponse.json({ success: true, url: publicUrl, path: filePath })
   } catch (err: any) {
