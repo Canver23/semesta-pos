@@ -22,10 +22,23 @@ export default function RekapPage() {
   const [rawText, setRawText] = useState('')
   const [showRaw, setShowRaw] = useState(false)
   const [stored, setStored] = useState<StoredRekap[]>([])
+  const [fotoResis, setFotoResis] = useState<Set<string>>(new Set())
   const [saving, setSaving] = useState(false)
   const [editId, setEditId] = useState<number | null>(null)
   const [editNama, setEditNama] = useState('')
   const [editBerat, setEditBerat] = useState('')
+
+  const loadFotoResis = useCallback(async () => {
+    const set = new Set<string>()
+    try {
+      const local = loadFotoData()
+      for (const f of local) if (f.ocr?.resi) set.add(f.ocr.resi.trim().toUpperCase())
+      const res = await fetch('/api/foto-paket/list')
+      const data = await res.json()
+      if (data.success && data.data) for (const r of data.data) if (r.resi) set.add(String(r.resi).trim().toUpperCase())
+    } catch (_) {}
+    setFotoResis(set)
+  }, [])
 
   const loadStored = useCallback(async () => {
     try {
@@ -35,7 +48,7 @@ export default function RekapPage() {
     } catch (_) {}
   }, [])
 
-  useEffect(() => { loadStored() }, [loadStored])
+  useEffect(() => { loadStored(); loadFotoResis() }, [loadStored, loadFotoResis])
 
   function loadFotoData(): FotoData[] {
     try { return JSON.parse(localStorage.getItem('semesta-foto-paket') || '[]') } catch (_) { return [] }
@@ -236,10 +249,15 @@ export default function RekapPage() {
 
           {storedView && stored.length > 0 && (
             <div className="card p-4">
-              <h3 className="text-sm font-semibold text-gray-700 mb-3">Data Tersimpan ({stored.length})</h3>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-semibold text-gray-700">Data Tersimpan ({stored.length})</h3>
+                <span className="text-xs text-gray-400">
+                  {stored.filter(r => fotoResis.has(String(r.resi).trim().toUpperCase())).length} cocok dengan foto
+                </span>
+              </div>
               <div className="overflow-x-auto">
                 <table className="data-table w-full text-xs">
-                  <thead><tr><th>Ekspedisi</th><th>Resi</th><th>Nama</th><th>Market</th><th>Berat</th><th></th></tr></thead>
+                  <thead><tr><th>Ekspedisi</th><th>Resi</th><th>Nama</th><th>Market</th><th>Berat</th><th>Foto</th><th></th></tr></thead>
                   <tbody>
                     {stored.map(row => (
                       <tr key={row.id}>
@@ -255,6 +273,11 @@ export default function RekapPage() {
                           {editId === row.id ? (
                             <input value={editBerat} onChange={e => setEditBerat(e.target.value)} className="w-20 px-2 py-1 border rounded text-xs" />
                           ) : row.berat}
+                        </td>
+                        <td>
+                          {fotoResis.has(String(row.resi).trim().toUpperCase())
+                            ? <span className="text-green-500 flex items-center gap-1"><Check size={12} /> Ada</span>
+                            : <span className="text-gray-300">-</span>}
                         </td>
                         <td className="flex gap-1">
                           {editId === row.id ? (
