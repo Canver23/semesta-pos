@@ -3,7 +3,7 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import Sidebar from '@/components/Sidebar'
 import { Camera, RotateCcw, Loader2, Check, Copy, X, Edit3, Save, Image, AlertCircle } from 'lucide-react'
 
-interface OcrResult { resi: string; berat: string; nama: string; raw: string }
+interface OcrResult { ekspedisi: string; resi: string; berat: string; nama: string; raw: string }
 
 interface CapturedItem {
   id: string; imageDataUrl: string; ocr: OcrResult | null; timestamp: number; uploaded: boolean; uploadUrl: string; uploadError?: string
@@ -23,6 +23,7 @@ export default function FotoPaketPage() {
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
   const [copiedId, setCopiedId] = useState<string | null>(null)
   const [editingId, setEditingId] = useState<string | null>(null)
+  const [editEkspedisi, setEditEkspedisi] = useState('')
   const [editResi, setEditResi] = useState('')
   const [editBerat, setEditBerat] = useState('')
   const [editNama, setEditNama] = useState('')
@@ -66,10 +67,19 @@ export default function FotoPaketPage() {
   }
 
   function parseOcr(text: string): OcrResult {
-    let resi = '', berat = '', nama = ''
+    let ekspedisi = '', resi = '', berat = '', nama = ''
 
     // Clean: remove spaces between single chars (S P X → SPX)
     const clean = text.replace(/\b(\w)(\s+)(\w)\b/g, (_, a, _s, b) => a + b)
+
+    // EKSPEDISI — prioritas: kurir diketahui dari logo/teks
+    if (/(?:jet\.co\.id|jnt|j&t)/i.test(clean)) ekspedisi = 'J&T'
+    else if (/\bSPX[A-Za-z]*\s*ID|shopee\s*express/i.test(clean)) ekspedisi = 'SPX'
+    else if (/anteraja|anter\s*aja|CASHLESS/i.test(clean)) ekspedisi = 'AnterAja'
+    else if (/\bCM\d{10,}/.test(clean)) ekspedisi = 'JNE'
+    else if (/\bTSA-?\d{8,}/.test(clean)) ekspedisi = 'SiCepat'
+    else if (/paxel|TO\s*\(\s*ADDRESS/i.test(clean)) ekspedisi = 'PAXEL'
+    else if (/\bJY\d{6,}/.test(clean)) ekspedisi = 'J&T'
 
     // RESI — priority: known courier prefixes, then Order/OrderID, then any long digit
     const resiCandidates = clean.match(/(?:SPX[A-Za-z]*\s*ID\d{6,}|JY\d{6,}|S\d{16,}|CM\d{8,}|TSA-?\d{8,}|\d{12,})/i)
@@ -124,7 +134,7 @@ export default function FotoPaketPage() {
       if (cleaned.length >= 2 && !/^\d{6,}$/.test(cleaned)) nama = cleaned
     }
 
-    return { resi, berat, nama, raw: text.substring(0, 500) }
+    return { ekspedisi, resi, berat, nama, raw: text.substring(0, 500) }
   }
 
   function saveToLocal(item: CapturedItem) {
@@ -161,12 +171,12 @@ export default function FotoPaketPage() {
   }
 
   function startEdit(item: CapturedItem) {
-    const o = item.ocr || { resi: '', berat: '', nama: '', raw: '' }
-    setEditingId(item.id); setEditResi(o.resi); setEditBerat(o.berat); setEditNama(o.nama)
+    const o = item.ocr || { ekspedisi: '', resi: '', berat: '', nama: '', raw: '' }
+    setEditingId(item.id); setEditEkspedisi(o.ekspedisi); setEditResi(o.resi); setEditBerat(o.berat); setEditNama(o.nama)
   }
   function saveEdit(id: string) {
     setCaptured(prev => {
-      const updated = prev.map(c => { if (c.id !== id) return c; const ocr = c.ocr || { resi: '', berat: '', nama: '', raw: '' }; return { ...c, ocr: { ...ocr, resi: editResi, berat: editBerat, nama: editNama } } })
+      const updated = prev.map(c => { if (c.id !== id) return c; const ocr = c.ocr || { ekspedisi: '', resi: '', berat: '', nama: '', raw: '' }; return { ...c, ocr: { ...ocr, ekspedisi: editEkspedisi, resi: editResi, berat: editBerat, nama: editNama } } })
       const found = updated.find(c => c.id === id)
       if (found) saveToLocal(found)
       return updated
@@ -175,7 +185,7 @@ export default function FotoPaketPage() {
   }
   function toggleCollapse(id: string) { setCollapsed(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n }) }
   async function handleCopy(text: string, id: string) { await navigator.clipboard.writeText(text); setCopiedId(id); setTimeout(() => setCopiedId(null), 1500) }
-  function formatOneLine(o: OcrResult): string { const p: string[] = []; if (o.resi) p.push(o.resi); if (o.nama) p.push(o.nama); if (o.berat) p.push(o.berat); return p.join(' | ') }
+  function formatOneLine(o: OcrResult): string { const p: string[] = []; if (o.ekspedisi) p.push(o.ekspedisi); if (o.resi) p.push(o.resi); if (o.nama) p.push(o.nama); if (o.berat) p.push(o.berat); return p.join(' | ') }
   async function copyAll() {
     const lines = captured.map(c => c.ocr ? formatOneLine(c.ocr) : '').filter(Boolean).join('\n')
     await navigator.clipboard.writeText(lines)
@@ -262,6 +272,7 @@ export default function FotoPaketPage() {
                               ) : o ? (
                                 isEditing ? (
                                   <div className="space-y-2">
+                                    <div><label className="text-[10px] text-gray-400 block">Ekspedisi</label><input value={editEkspedisi} onChange={e => setEditEkspedisi(e.target.value)} className="w-full px-2 py-1 text-xs border rounded" /></div>
                                     <div><label className="text-[10px] text-gray-400 block">Resi</label><input value={editResi} onChange={e => setEditResi(e.target.value)} className="w-full px-2 py-1 text-xs border rounded" /></div>
                                     <div><label className="text-[10px] text-gray-400 block">Berat</label><input value={editBerat} onChange={e => setEditBerat(e.target.value)} className="w-full px-2 py-1 text-xs border rounded" /></div>
                                     <div><label className="text-[10px] text-gray-400 block">Nama</label><input value={editNama} onChange={e => setEditNama(e.target.value)} className="w-full px-2 py-1 text-xs border rounded" /></div>
@@ -271,10 +282,11 @@ export default function FotoPaketPage() {
                                   <div>
                                     <div className="flex items-start justify-between gap-2">
                                       <div className="space-y-1">
+                                        {o.ekspedisi && <p className="text-xs"><span className="text-gray-400">Ekspedisi:</span> <span className="font-medium">{o.ekspedisi}</span></p>}
                                         {o.resi && <p className="text-xs"><span className="text-gray-400">Resi:</span> <span className="font-mono">{o.resi}</span></p>}
                                         {o.berat && <p className="text-xs"><span className="text-gray-400">Berat:</span> {o.berat}</p>}
                                         {o.nama && <p className="text-xs"><span className="text-gray-400">Nama:</span> {o.nama}</p>}
-                                        {!o.resi && !o.berat && !o.nama && <p className="text-xs text-red-400">Tidak dapat membaca teks</p>}
+                                        {!o.ekspedisi && !o.resi && !o.berat && !o.nama && <p className="text-xs text-red-400">Tidak dapat membaca teks</p>}
                                       </div>
                                       <div className="flex gap-1 shrink-0">
                                         <button onClick={() => startEdit(item)} className="btn-ghost btn-sm" title="Edit"><Edit3 size={13} /></button>
