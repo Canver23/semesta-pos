@@ -102,9 +102,11 @@ export default function FotoPaketPage() {
       if (parseFloat(w3?.[1] || '0') > 0) berat = w3![1] + ' gr'
     }
 
-    // NAMA
+    // NAMA — toleran terhadap kesalahan OCR ("Penerima" → "Pencrima"/"Peneima"/dll)
     let raw = ''
-    const namaM = clean.match(/Penerima\s*:?\s*(.+)/i)
+    // P[eo]n?[ce]r[ie]m?[a1] — huruf fleksibel untuk kata "Penerima"
+    const p = /\bP[a-z]*e[a-z]*n[a-z]*[ce][a-z]*r[a-z]*i[a-z]*m[ae]\s*:?\s*(.+)/i
+    const namaM = clean.match(p)
     if (namaM) raw = namaM[1]
     if (!raw) {
       const namaM2 = clean.match(/Nama\s*Penerima\s*:?\s*(.+)/i)
@@ -115,7 +117,10 @@ export default function FotoPaketPage() {
       if (namaM3) raw = namaM3[1]
     }
     if (raw) {
-      const cleaned = raw.trim().split(/[\n\r]+/)[0].trim()
+      let cleaned = raw.trim().split(/[\n\r]+/)[0].trim()
+      // Kalau nama gabung dgn nomor telp, ambil bagian nama saja
+      cleaned = cleaned.replace(/\s*\(\+?\d[\d\s]*\)?\s*$/, '').trim()
+      cleaned = cleaned.replace(/^\d[\d\s]*\s+/, '').trim()
       if (cleaned.length >= 2 && !/^\d{6,}$/.test(cleaned)) nama = cleaned
     }
 
