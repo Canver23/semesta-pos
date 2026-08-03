@@ -81,6 +81,18 @@ create table if not exists foto_paket (
   created_at  timestamptz default now()
 );
 
+-- Rekap Paket (hasil parse PDF label — diedit manual / auto-update dari foto)
+create table if not exists rekap_paket (
+  id          bigserial primary key,
+  courier     text default '',
+  resi        text default '',
+  nama        text default '',
+  marketplace text default 'TP',
+  berat       text default '',
+  photo_url   text default '',
+  created_at  timestamptz default now()
+);
+
 -- ── Row Level Security (izinkan akses tanpa auth) ────────────
 -- Untuk POS internal — semua orang yang punya URL bisa akses
 -- Kalau mau lebih aman, tambahkan auth nanti
@@ -92,6 +104,7 @@ alter table invoices          enable row level security;
 alter table transactions      enable row level security;
 alter table attendance        enable row level security;
 alter table foto_paket        enable row level security;
+alter table rekap_paket       enable row level security;
 
 -- Allow all operations (internal app, no public auth)
 create policy "allow_all_products"          on products          for all using (true) with check (true);
@@ -101,6 +114,7 @@ create policy "allow_all_invoices"          on invoices          for all using (
 create policy "allow_all_transactions"      on transactions      for all using (true) with check (true);
 create policy "allow_all_attendance"        on attendance        for all using (true) with check (true);
 create policy "allow_all_foto_paket"        on foto_paket        for all using (true) with check (true);
+create policy "allow_all_rekap_paket"       on rekap_paket       for all using (true) with check (true);
 
 -- ── Storage bucket untuk foto paket ────────────────────────
 -- Buka Supabase Dashboard → Storage → New Bucket → nama: semesta-pos

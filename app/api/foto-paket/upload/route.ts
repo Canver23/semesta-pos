@@ -47,6 +47,20 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Gagal simpan data: ' + insErr.message }, { status: 500 })
     }
 
+    // Auto-update rekap_paket yang resi-nya cocok (ganti nama sensor dgn nama asli)
+    if (resi) {
+      const { data: matched } = await supabase
+        .from('rekap_paket')
+        .select('id, nama')
+        .ilike('resi', resi.trim())
+      if (matched && matched.length > 0) {
+        await supabase
+          .from('rekap_paket')
+          .update({ nama: nama || matched[0].nama, berat: berat || undefined, photo_url: publicUrl })
+          .eq('id', matched[0].id)
+      }
+    }
+
     return NextResponse.json({ success: true, url: publicUrl, path: filePath })
   } catch (err: any) {
     console.error('Upload error:', err)
