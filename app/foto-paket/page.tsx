@@ -85,9 +85,22 @@ export default function FotoPaketPage() {
       if (noResi) resi = noResi[1].replace(/\s+/g, '')
     }
 
-    // BERAT
-    const beratM = clean.match(/(\d{1,5})\s*(?:gr|gram|Gr|GR|kg|KG|Kg|Gram)\b/i)
-    if (beratM) berat = beratM[1] + ' gr'
+    // BERAT — cek display timbangan (angka desimal kg/gr) atau label "Berat"
+    let beratMatch = clean.match(/(\d{1,3}\s*[.,]\s*\d{1,3})\s*(?:kg|Kg|KG)\b/i)
+    if (beratMatch) {
+      const w = parseFloat(beratMatch[1].replace(',', '.'))
+      if (w > 0 && w < 100) berat = w.toFixed(2) + ' kg'
+    }
+    if (!berat) {
+      const beratLabel = clean.match(/Berat\s*:?\s*(\d[\d.,]*)\s*(?:gr|gram)\b/i)
+      if (beratLabel && parseFloat(beratLabel[1].replace(',', '')) > 0) {
+        berat = beratLabel[1].replace(',', '') + ' gr'
+      }
+    }
+    if (!berat) {
+      const w3 = clean.match(/(\d{1,5})\s*(?:gr|gram|Gr|GR)\b/i)
+      if (parseFloat(w3?.[1] || '0') > 0) berat = w3![1] + ' gr'
+    }
 
     // NAMA
     let raw = ''
