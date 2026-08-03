@@ -1,11 +1,13 @@
 'use client'
 import { useState, useCallback } from 'react'
 import Sidebar from '@/components/Sidebar'
-import { Upload, FileText, Copy, Check, Loader2, X, Plus, Trash2 } from 'lucide-react'
+import { Upload, FileText, Copy, Check, Loader2, X, Plus, Trash2, UserCheck } from 'lucide-react'
 
-interface RecipientEntry { name: string; marketplace: 'TP' | 'SP' }
+interface RecipientEntry { name: string; marketplace: 'TP' | 'SP'; resi?: string; matched?: boolean }
 interface CourierGroup { courier: string; short: string; recipients: RecipientEntry[] }
 interface Summary { TP: number; SP: number; total: number }
+interface LabelData { courier: string; courierShort: string; recipientName: string; marketplace: 'TP' | 'SP'; resi: string }
+interface FotoData { id: string; ocr: { resi: string; nama: string } | null }
 
 export default function RekapPage() {
   const [files, setFiles] = useState<File[]>([])
@@ -19,51 +21,81 @@ export default function RekapPage() {
   const [rawText, setRawText] = useState('')
   const [showRaw, setShowRaw] = useState(false)
 
+  function loadFotoData(): FotoData[] {
+    try { return JSON.parse(localStorage.getItem('semesta-foto-paket') || '[]') } catch (_) { return [] }
+  }
+
+  function applyFotoMatch(labels: LabelData[]): { groups: CourierGroup[]; summary: Summary } {
+    const fotos = loadFotoData()
+    const resiToNama = new Map<string, string>()
+    for (const f of fotos) {
+      const r = f.ocr?.resi?.trim()
+      const n = f.ocr?.nama?.trim()
+      if (r && n) resiToNama.set(r.toUpperCase(), n)
+    }
+
+    const map = new Map<string, RecipientEntry[]>()
+    for (const label of labels) {
+      const key = label.courierShort
+      if (!map.has(key)) map.set(key, [])
+      const resiUpper = (label.resi || '').toUpperCase()
+      const fotoNama = resiUpper ? resiToNama.get(resiUpper) : undefined
+      let name = label.recipientName
+      let matched = false
+      if (fotoNama) {
+        name = fotoNama
+        matched = true
+      }
+      map.get(key)!.push({ name, marketplace: label.marketplace, resi: label.resi, matched })
+    }
+
+    const order = ['AA', 'J&T', 'SPX', 'SiCepat', 'PAXEL', 'JNE', 'Pos', 'IDX', 'Ninja']
+    const groupsOut: CourierGroup[] = []
+    for (const short of order) {
+      const recipients = map.get(short)
+      if (recipients?.length) {
+        groupsOut.push({ courier: short === 'J&T' ? 'J&T' : short, short, recipients })
+        map.delete(short)
+      }
+    }
+    for (const [short, recipients] of map) groupsOut.push({ courier: short, short, recipients })
+
+    let TP = 0, SP = 0
+    for (const g of groupsOut) for (const r of g.recipients) { if (r.marketplace === 'TP') TP++; else SP++ }
+    return { groups: groupsOut, summary: { TP, SP, total: TP + SP } }
+  }
+
   const handleAddFiles = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const newFiles = Array.from(e.target.files || [])
-    if (newFiles.length > 0) {
-      setFiles(prev => [...prev, ...newFiles])
-      setError('')
-    }
+    if (newFiles.length > 0) { setFiles(prev => [...prev, ...newFiles]); setError('') }
     e.target.value = ''
   }, [])
 
-  function removeFile(index: number) {
-    setFiles(prev => prev.filter((_, i) => i !== index))
-  }
+  function removeFile(index: number) { setFiles(prev => prev.filter((_, i) => i !== index)) }
 
   const handleParse = useCallback(async () => {
     if (files.length === 0) return
-    setLoading(true)
-    setError('')
-    setFileErrors([])
-    setGroups([])
-    setSummary(null)
-    setTotalLabels(0)
-
+    setLoading(true); setError(''); setFileErrors([]); setGroups([]); setSummary(null); setTotalLabels(0)
     try {
       const fd = new FormData()
       files.forEach(f => fd.append('files', f))
-
       const res = await fetch('/api/rekap/parse', { method: 'POST', body: fd })
       const data = await res.json()
-
       if (!res.ok || data.error) {
         setError(data.error || 'Gagal memproses PDF')
         if (data.fileErrors) setFileErrors(data.fileErrors)
         if (data.rawText) setRawText(data.rawText)
         return
       }
-
-      setGroups(data.groups || [])
-      setSummary(data.summary || null)
       setTotalLabels(data.totalLabels || 0)
       if (data.fileErrors) setFileErrors(data.fileErrors)
-    } catch {
-      setError('Gagal terhubung ke server')
-    } finally {
-      setLoading(false)
-    }
+
+      const labels: LabelData[] = data.labels || []
+      const result = applyFotoMatch(labels)
+      setGroups(result.groups)
+      setSummary(result.summary)
+    } catch { setError('Gagal terhubung ke server') }
+    finally { setLoading(false) }
   }, [files])
 
   function buildRekapText(): string {
@@ -75,7 +107,6 @@ export default function RekapPage() {
       })
       text += '\n'
     }
-
     if (summary) {
       text += `\nTP : ${summary.TP}\n`
       text += `SP : ${summary.SP}\n`
@@ -86,17 +117,11 @@ export default function RekapPage() {
   async function handleCopy() {
     const text = buildRekapText()
     await navigator.clipboard.writeText(text)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
+    setCopied(true); setTimeout(() => setCopied(false), 2000)
   }
 
   function handleClear() {
-    setFiles([])
-    setGroups([])
-    setSummary(null)
-    setTotalLabels(0)
-    setError('')
-    setFileErrors([])
+    setFiles([]); setGroups([]); setSummary(null); setTotalLabels(0); setError(''); setFileErrors([])
   }
 
   return (
@@ -107,23 +132,19 @@ export default function RekapPage() {
           <div className="flex items-center justify-between mb-6">
             <div>
               <h1 className="text-xl font-semibold text-gray-800">Rekap Paket</h1>
-              <p className="text-sm text-gray-400 mt-0.5">Upload PDF label pengiriman (multi-file, multi-halaman)</p>
+              <p className="text-sm text-gray-400 mt-0.5">Upload PDF label — nama disensor otomatis diganti data dari Foto Paket</p>
             </div>
           </div>
 
           <div className="card mb-6">
             {files.length > 0 && (
               <div className="mb-4 space-y-2">
-                <p className="text-xs text-gray-400">
-                  {files.length} file dipilih ({files.map(f => f.name).join(', ')})
-                </p>
+                <p className="text-xs text-gray-400">{files.length} file dipilih ({files.map(f => f.name).join(', ')})</p>
                 <div className="flex flex-wrap gap-2">
                   {files.map((f, i) => (
                     <span key={i} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-gray-100 text-xs text-gray-600">
                       {f.name}
-                      <button onClick={() => removeFile(i)} className="hover:text-red-500">
-                        <X size={12} />
-                      </button>
+                      <button onClick={() => removeFile(i)} className="hover:text-red-500"><X size={12} /></button>
                     </span>
                   ))}
                 </div>
@@ -133,35 +154,13 @@ export default function RekapPage() {
               <label className="flex items-center gap-2 px-4 py-2.5 rounded-lg border-2 border-dashed border-gray-300 hover:border-brand-400 cursor-pointer transition text-sm text-gray-500 hover:text-brand-600">
                 <Plus size={16} />
                 {files.length > 0 ? 'Tambah PDF' : 'Pilih PDF'}
-                <input
-                  type="file"
-                  accept=".pdf"
-                  multiple
-                  onChange={handleAddFiles}
-                  className="hidden"
-                />
+                <input type="file" accept=".pdf" multiple onChange={handleAddFiles} className="hidden" />
               </label>
-              {files.length > 0 && (
-                <button onClick={() => setFiles([])} className="btn-ghost btn-sm text-red-500">
-                  <Trash2 size={14} /> Hapus semua
-                </button>
-              )}
-              <button
-                onClick={handleParse}
-                disabled={files.length === 0 || loading}
-                className="btn-blue"
-              >
-                {loading ? (
-                  <><Loader2 size={14} className="animate-spin" /> Memproses {files.length} file...</>
-                ) : (
-                  <><FileText size={14} /> Proses Rekap ({files.length} file)</>
-                )}
+              {files.length > 0 && <button onClick={() => setFiles([])} className="btn-ghost btn-sm text-red-500"><Trash2 size={14} /> Hapus semua</button>}
+              <button onClick={handleParse} disabled={files.length === 0 || loading} className="btn-blue">
+                {loading ? <><Loader2 size={14} className="animate-spin" /> Memproses...</> : <><FileText size={14} /> Proses Rekap</>}
               </button>
-              {(groups.length > 0 || error) && (
-                <button onClick={handleClear} className="btn-ghost">
-                  <X size={14} /> Reset
-                </button>
-              )}
+              {(groups.length > 0 || error) && <button onClick={handleClear} className="btn-ghost"><X size={14} /> Reset</button>}
             </div>
           </div>
 
@@ -171,21 +170,13 @@ export default function RekapPage() {
               {fileErrors.length > 0 && (
                 <div className="mt-2">
                   <p className="text-xs text-red-500 font-medium mb-1">Error per file:</p>
-                  <ul className="text-xs text-red-400 list-disc list-inside">
-                    {fileErrors.map((e, i) => <li key={i}>{e}</li>)}
-                  </ul>
+                  <ul className="text-xs text-red-400 list-disc list-inside">{fileErrors.map((e, i) => <li key={i}>{e}</li>)}</ul>
                 </div>
               )}
               {rawText && (
                 <div className="mt-3">
-                  <button onClick={() => setShowRaw(!showRaw)} className="text-xs text-red-500 underline">
-                    {showRaw ? 'Sembunyikan' : 'Lihat'} raw text dari PDF
-                  </button>
-                  {showRaw && (
-                    <pre className="mt-2 text-xs text-red-600 bg-red-100 p-3 rounded-lg max-h-60 overflow-auto whitespace-pre-wrap">
-                      {rawText}
-                    </pre>
-                  )}
+                  <button onClick={() => setShowRaw(!showRaw)} className="text-xs text-red-500 underline">{showRaw ? 'Sembunyikan' : 'Lihat'} raw text dari PDF</button>
+                  {showRaw && <pre className="mt-2 text-xs text-red-600 bg-red-100 p-3 rounded-lg max-h-60 overflow-auto whitespace-pre-wrap">{rawText}</pre>}
                 </div>
               )}
             </div>
@@ -212,6 +203,8 @@ export default function RekapPage() {
                     {group.recipients.map((r, i) => (
                       <div key={i} className="ml-2">
                         {i + 1}. {r.name} ({r.marketplace})
+                        {r.matched && <UserCheck size={11} className="inline ml-1 text-green-500" />}
+                        {r.resi && <span className="text-[10px] text-gray-300 ml-2">{r.resi}</span>}
                       </div>
                     ))}
                   </div>

@@ -1,6 +1,6 @@
 export interface RecipientEntry { name: string; marketplace: 'TP' | 'SP' }
 export interface CourierGroup { courier: string; short: string; recipients: RecipientEntry[] }
-export interface PdfLabel { courier: string; courierShort: string; recipientName: string; marketplace: 'TP' | 'SP' | null }
+export interface PdfLabel { courier: string; courierShort: string; recipientName: string; marketplace: 'TP' | 'SP' | null; resi: string }
 
 const COURIERS: { name: string; short: string; patterns: RegExp[] }[] = [
   { name: 'AnterAja', short: 'AA', patterns: [/anteraja/i] },
@@ -181,12 +181,30 @@ export function parseLabelText(text: string): PdfLabel[] {
 
   const prefix = isCargo ? 'Cargo - ' : (isPaxel || isSameday) ? 'sameday - ' : ''
 
+  const resi = extractResi(joined)
+
   return directNames.map(name => ({
     courier: courier.name,
     courierShort: courier.short,
     recipientName: prefix ? `${prefix}${name}` : name,
     marketplace,
+    resi,
   }))
+}
+
+function extractResi(text: string): string {
+  const patterns = [
+    /\b(?:SPXID|JY|CM|TSA)[A-Za-z0-9-]{8,}\b/i,
+    /\bS\d{16,}\b/,
+    /No\.?\s*Resi\s*:?\s*([A-Za-z0-9-]{8,})/i,
+    /Order\s*[Ii]d\s*:?\s*([A-Za-z0-9-]{8,})/i,
+    /\b\d{12,}\b/,
+  ]
+  for (const p of patterns) {
+    const m = text.match(p)
+    if (m) return (m[1] || m[0]).replace(/\s+/g, '')
+  }
+  return ''
 }
 
 export function parseRecap(labels: PdfLabel[]): {
