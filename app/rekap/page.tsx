@@ -42,6 +42,8 @@ export default function RekapPage() {
 
   const loadStored = useCallback(async () => {
     try {
+      // Sync: update nama rekap dari foto yang resi-nya cocok
+      try { await fetch('/api/rekap/sync', { method: 'POST' }) } catch (_) {}
       const res = await fetch('/api/rekap/list')
       const data = await res.json()
       if (data.success && data.data) setStored(data.data)
