@@ -71,9 +71,15 @@ export default function FotoPaketPage() {
     // Clean: remove spaces between single chars (S P X → SPX)
     const clean = text.replace(/\b(\w)(\s+)(\w)\b/g, (_, a, _s, b) => a + b)
 
-    // RESI
-    const resiM = clean.match(/(?:SPX[A-Za-z]*\s*ID\d{10,}|JY\d{10,}|CM\d{10,}|TSA-?\d{8,}|\b\d{12,}\b)/i)
-    if (resiM) resi = resiM[0].replace(/\s+/g, '')
+    // RESI — priority: known courier prefixes, then Order/OrderID, then any long digit
+    const resiCandidates = clean.match(/(?:SPX[A-Za-z]*\s*ID\d{6,}|JY\d{6,}|S\d{16,}|CM\d{8,}|TSA-?\d{8,}|\d{12,})/i)
+    if (resiCandidates) {
+      resi = resiCandidates[0].replace(/\s+/g, '')
+    }
+    if (!resi) {
+      const orderM = clean.match(/Order\s*1d?\s*:\s*([\w-]{8,})/i)
+      if (orderM) resi = orderM[1].replace(/\s+/g, '')
+    }
     if (!resi) {
       const noResi = clean.match(/No\.?\s*Resi\s*:?\s*([\w-]{8,})/i)
       if (noResi) resi = noResi[1].replace(/\s+/g, '')
@@ -84,10 +90,20 @@ export default function FotoPaketPage() {
     if (beratM) berat = beratM[1] + ' gr'
 
     // NAMA
+    let raw = ''
     const namaM = clean.match(/Penerima\s*:?\s*(.+)/i)
-    if (namaM) {
-      const raw = namaM[1].trim().split(/[\n\r]+/)[0].trim()
-      if (raw.length >= 2 && !/^\d{6,}$/.test(raw)) nama = raw
+    if (namaM) raw = namaM[1]
+    if (!raw) {
+      const namaM2 = clean.match(/Nama\s*Penerima\s*:?\s*(.+)/i)
+      if (namaM2) raw = namaM2[1]
+    }
+    if (!raw) {
+      const namaM3 = clean.match(/Kepada\s*:?\s*(.+)/i)
+      if (namaM3) raw = namaM3[1]
+    }
+    if (raw) {
+      const cleaned = raw.trim().split(/[\n\r]+/)[0].trim()
+      if (cleaned.length >= 2 && !/^\d{6,}$/.test(cleaned)) nama = cleaned
     }
 
     return { resi, berat, nama, raw: text.substring(0, 500) }
