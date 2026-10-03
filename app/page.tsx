@@ -280,7 +280,7 @@ export default function PosPage() {
             ))}
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 overflow-y-auto flex-1 scrollbar-thin pb-[52vh] md:pb-0">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 overflow-y-auto flex-1 scrollbar-thin">
             {filtered.length === 0 && (
               <p className="col-span-full text-center text-gray-400 text-sm py-16">Produk tidak ditemukan</p>
             )}
@@ -331,10 +331,22 @@ export default function PosPage() {
         </div>
 
         {/* ── Right: Cart ──────────────────────────────── */}
-        <div className="fixed inset-x-0 bottom-14 z-30 md:static md:inset-auto md:bottom-auto md:z-auto w-full md:w-72 flex flex-col bg-white border-t md:border-t-0 md:border-l border-gray-200 rounded-t-2xl md:rounded-none shadow-[0_-8px_30px_rgba(0,0,0,0.12)] md:shadow-none max-h-[55vh] md:max-h-none md:min-h-0">
+        <div className="w-full md:w-72 flex flex-col bg-white border-t md:border-t-0 md:border-l border-gray-200 md:min-h-0">
           <div className="px-4 py-3 border-b border-gray-200">
             <p className="font-medium text-sm">Order Saat Ini</p>
             <p className="text-xs text-gray-400">{cart.reduce((s, i) => s + i.qty, 0)} item</p>
+          </div>
+          {/* Summary di atas — selalu terlihat tanpa scroll */}
+          <div className="px-4 py-3 border-b border-gray-200 flex flex-col gap-2">
+            <div className="flex justify-between text-xs text-gray-500">
+              <span>Subtotal</span><span>{fmt(total)}</span>
+            </div>
+            <div className="flex justify-between text-base font-semibold">
+              <span>Total</span><span>{fmt(total)}</span>
+            </div>
+            <button onClick={() => { setCashInput(''); setShowPay(true) }} disabled={cart.length === 0} className="btn-blue w-full py-3">
+              Bayar Sekarang
+            </button>
           </div>
           <div className="flex-1 min-h-0 overflow-y-auto px-3 py-3 flex flex-col gap-2 scrollbar-thin">
             {cart.length === 0 && (
@@ -364,17 +376,6 @@ export default function PosPage() {
                 </button>
               </div>
             ))}
-          </div>
-          <div className="px-4 py-4 border-t border-gray-200 flex flex-col gap-3">
-            <div className="flex justify-between text-xs text-gray-500">
-              <span>Subtotal</span><span>{fmt(total)}</span>
-            </div>
-            <div className="flex justify-between text-base font-semibold">
-              <span>Total</span><span>{fmt(total)}</span>
-            </div>
-            <button onClick={() => { setCashInput(''); setShowPay(true) }} disabled={cart.length === 0} className="btn-blue w-full py-3">
-              Bayar Sekarang
-            </button>
           </div>
         </div>
       </main>
