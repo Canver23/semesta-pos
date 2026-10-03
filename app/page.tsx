@@ -42,7 +42,7 @@ function ProductPicker({
     : product.name
 
   function handleAdd() {
-    onSelect(displayName, price, unit, hasVariants ? variantName : undefined)
+    onSelect(displayName, price, unit, hasVariants ? selectedVariant : undefined)
     onClose()
   }
 
@@ -163,7 +163,7 @@ function ProductPicker({
 // MAIN POS PAGE
 // ─────────────────────────────────────────────────────────────
 export default function PosPage() {
-  const { products, cart, addToCart, changeQty, removeFromCart, clearCart, addTransaction } = useStore()
+  const { products, cart, addToCart, changeQty, removeFromCart, clearCart, addTransaction, updateProduct } = useStore()
 
   const [activeCat, setActiveCat]       = useState('Semua')
   const [search, setSearch]             = useState('')
@@ -185,7 +185,7 @@ export default function PosPage() {
   })
 
   const total  = cart.reduce((s, i) => s + i.price * i.qty, 0)
-  const cash   = parseFloat(cashInput) || 0
+  const cash   = parseInt(cashInput.replace(/\D/g, ''), 10) || 0
   const change = cash - total
   const canPay = cash >= total && cash > 0
 
@@ -211,10 +211,10 @@ export default function PosPage() {
   }
 
   // Dari ProductPicker — tambah ke cart dengan nama/harga/unit yang sudah dipilih
-  function handlePickerSelect(name: string, price: number, unit: string) {
+  function handlePickerSelect(name: string, price: number, unit: string, variant?: string) {
     if (!pickerProduct) return
     // Gunakan id produk asli, tapi nama/harga/unit dari pilihan
-    addToCart({ id: pickerProduct.id, name, price, unit })
+    addToCart({ id: pickerProduct.id, name, price, unit, variant })
   }
 
   async function confirmPayment() {
@@ -228,6 +228,18 @@ export default function PosPage() {
       total, cash, change,
       method: 'Cash',
     })
+    // Kurangi stok produk (dan varian) sesuai qty yang dibeli
+    await Promise.all(cart.map(async item => {
+      const p = products.find(x => x.id === item.id)
+      if (!p) return
+      const patch: Partial<Product> = { stock: Math.max(0, Math.round((p.stock - item.qty) * 1000) / 1000) }
+      if (item.variant && p.variants?.length) {
+        patch.variants = p.variants.map(v =>
+          v.id === item.variant ? { ...v, stock: Math.max(0, Math.round((v.stock - item.qty) * 1000) / 1000) } : v
+        )
+      }
+      await updateProduct(item.id, patch)
+    }))
     setLastTrx(trx)
     setShowPay(false)
     setShowReceipt(true)
@@ -319,12 +331,12 @@ export default function PosPage() {
         </div>
 
         {/* ── Right: Cart ──────────────────────────────── */}
-        <div className="w-full md:w-72 flex flex-col bg-white border-t md:border-t-0 md:border-l border-gray-200 max-h-64 md:max-h-none">
+        <div className="w-full md:w-72 flex flex-col bg-white border-t md:border-t-0 md:border-l border-gray-200 max-h-[50vh] md:max-h-none md:min-h-0">
           <div className="px-4 py-3 border-b border-gray-200">
             <p className="font-medium text-sm">Order Saat Ini</p>
             <p className="text-xs text-gray-400">{cart.reduce((s, i) => s + i.qty, 0)} item</p>
           </div>
-          <div className="flex-1 overflow-y-auto px-3 py-3 flex flex-col gap-2 scrollbar-thin">
+          <div className="flex-1 min-h-0 overflow-y-auto px-3 py-3 flex flex-col gap-2 scrollbar-thin">
             {cart.length === 0 && (
               <div className="flex flex-col items-center justify-center h-full text-gray-300 gap-2">
                 <span className="text-4xl">🛒</span>
@@ -332,7 +344,7 @@ export default function PosPage() {
               </div>
             )}
             {cart.map(item => (
-              <div key={item.id} className="flex items-center gap-2 bg-gray-50 rounded-lg px-3 py-2">
+              <div key={`${item.id}-${item.variant ?? ''}`} className="flex items-center gap-2 bg-gray-50 rounded-lg px-3 py-2">
                 <div className="flex-1 min-w-0">
                   <p className="text-xs font-medium truncate">{item.name}</p>
                   <p className="text-[11px] text-gray-500">
@@ -340,14 +352,14 @@ export default function PosPage() {
                   </p>
                 </div>
                 <div className="flex items-center gap-1">
-                  <button onClick={() => changeQty(item.id, -0.5)} className="w-6 h-6 rounded border border-gray-200 bg-white flex items-center justify-center hover:bg-gray-100 text-gray-500 text-xs font-bold">½-</button>
-                  <button onClick={() => changeQty(item.id, -1)} className="w-6 h-6 rounded border border-gray-200 bg-white flex items-center justify-center hover:bg-gray-100"><Minus size={11}/></button>
+                  <button onClick={() => changeQty(item.id, item.variant, -0.5)} className="w-6 h-6 rounded border border-gray-200 bg-white flex items-center justify-center hover:bg-gray-100 text-gray-500 text-xs font-bold">½-</button>
+                  <button onClick={() => changeQty(item.id, item.variant, -1)} className="w-6 h-6 rounded border border-gray-200 bg-white flex items-center justify-center hover:bg-gray-100"><Minus size={11}/></button>
                   <input type="number" step="0.001" min="0.001" value={item.qty}
-                    onChange={e => { const v = parseFloat(e.target.value); if (v > 0) changeQty(item.id, v - item.qty) }}
+                    onChange={e => { const v = parseFloat(e.target.value); if (v > 0) changeQty(item.id, item.variant, v - item.qty) }}
                     className="text-xs font-medium w-12 text-center border border-gray-200 rounded bg-white outline-none focus:border-brand-400 px-1 py-0.5" />
-                  <button onClick={() => changeQty(item.id, 1)} className="w-6 h-6 rounded border border-gray-200 bg-white flex items-center justify-center hover:bg-gray-100"><Plus size={11}/></button>
+                  <button onClick={() => changeQty(item.id, item.variant, 1)} className="w-6 h-6 rounded border border-gray-200 bg-white flex items-center justify-center hover:bg-gray-100"><Plus size={11}/></button>
                 </div>
-                <button onClick={() => removeFromCart(item.id)} className="w-6 h-6 rounded border border-gray-200 flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 hover:border-red-200 transition">
+                <button onClick={() => removeFromCart(item.id, item.variant)} className="w-6 h-6 rounded border border-gray-200 flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 hover:border-red-200 transition">
                   <Trash2 size={11}/>
                 </button>
               </div>
@@ -392,8 +404,9 @@ export default function PosPage() {
           </div>
           <div>
             <label className="text-xs text-gray-500 block mb-1.5">Uang diterima</label>
-            <input type="number" autoFocus className="input" placeholder="0"
-              value={cashInput} onChange={e => setCashInput(e.target.value)} />
+            <input type="text" inputMode="numeric" autoFocus className="input" placeholder="0"
+              value={cashInput ? parseInt(cashInput, 10).toLocaleString('id-ID') : ''}
+              onChange={e => setCashInput(e.target.value.replace(/\D/g, ''))} />
           </div>
           {cash > 0 && cash >= total && (
             <div className="bg-green-50 rounded-lg py-3 text-center">

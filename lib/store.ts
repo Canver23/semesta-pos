@@ -53,9 +53,9 @@ interface StoreState {
 
   cart: CartItem[]
   addToCart: (item: Omit<CartItem, 'qty'>) => void
-  changeQty: (id: number, delta: number) => void
-  setQty: (id: number, qty: number) => void
-  removeFromCart: (id: number) => void
+  changeQty: (id: number, variant: string | undefined, delta: number) => void
+  setQty: (id: number, variant: string | undefined, qty: number) => void
+  removeFromCart: (id: number, variant?: string) => void
   clearCart: () => void
 
   attendanceLogs: AttendanceLog[]
@@ -214,22 +214,22 @@ export const useStore = create<StoreState>()((set, get) => ({
   // ── Cart (local only) ─────────────────────────────────────
   cart: [],
   addToCart: (item) => set(s => {
-    const existing = s.cart.find(x => x.id === item.id)
-    if (existing) return { cart: s.cart.map(x => x.id === item.id ? { ...x, qty: x.qty + 1 } : x) }
+    const existing = s.cart.find(x => x.id === item.id && (x.variant ?? '') === (item.variant ?? ''))
+    if (existing) return { cart: s.cart.map(x => x.id === item.id && (x.variant ?? '') === (item.variant ?? '') ? { ...x, qty: x.qty + 1 } : x) }
     return { cart: [...s.cart, { ...item, qty: 1 }] }
   }),
-  changeQty: (id, delta) => set(s => ({
-    cart: s.cart.map(x => x.id === id
+  changeQty: (id, variant, delta) => set(s => ({
+    cart: s.cart.map(x => x.id === id && (x.variant ?? '') === (variant ?? '')
       ? { ...x, qty: Math.max(0.001, Math.round((x.qty + delta) * 1000) / 1000) }
       : x
     ).filter(x => x.qty > 0)
   })),
-  setQty: (id, qty) => set(s => ({
+  setQty: (id, variant, qty) => set(s => ({
     cart: qty <= 0
-      ? s.cart.filter(x => x.id !== id)
-      : s.cart.map(x => x.id === id ? { ...x, qty: Math.round(qty * 1000) / 1000 } : x)
+      ? s.cart.filter(x => !(x.id === id && (x.variant ?? '') === (variant ?? '')))
+      : s.cart.map(x => x.id === id && (x.variant ?? '') === (variant ?? '') ? { ...x, qty: Math.round(qty * 1000) / 1000 } : x)
   })),
-  removeFromCart: (id) => set(s => ({ cart: s.cart.filter(x => x.id !== id) })),
+  removeFromCart: (id, variant) => set(s => ({ cart: s.cart.filter(x => !(x.id === id && (x.variant ?? '') === (variant ?? ''))) })),
   clearCart: () => set({ cart: [] }),
 
   // ── Attendance ────────────────────────────────────────────
