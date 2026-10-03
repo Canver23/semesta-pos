@@ -331,51 +331,53 @@ export default function PosPage() {
         </div>
 
         {/* ── Right: Cart ──────────────────────────────── */}
-        <div className="w-full md:w-72 flex flex-col bg-white border-t md:border-t-0 md:border-l border-gray-200 md:min-h-0">
+        <div className="w-full md:w-72 flex flex-col bg-white border-t md:border-t-0 md:border-l border-gray-200 max-h-[55vh] md:max-h-none md:min-h-0">
           <div className="px-4 py-3 border-b border-gray-200">
             <p className="font-medium text-sm">Order Saat Ini</p>
             <p className="text-xs text-gray-400">{cart.reduce((s, i) => s + i.qty, 0)} item</p>
           </div>
-          {/* Summary di atas — selalu terlihat tanpa scroll */}
-          <div className="px-4 py-3 border-b border-gray-200 flex flex-col gap-2">
-            <div className="flex justify-between text-xs text-gray-500">
-              <span>Subtotal</span><span>{fmt(total)}</span>
-            </div>
-            <div className="flex justify-between text-base font-semibold">
-              <span>Total</span><span>{fmt(total)}</span>
-            </div>
-            <button onClick={() => { setCashInput(''); setShowPay(true) }} disabled={cart.length === 0} className="btn-blue w-full py-3">
-              Bayar Sekarang
-            </button>
-          </div>
-          <div className="flex-1 min-h-0 overflow-y-auto px-3 py-3 flex flex-col gap-2 scrollbar-thin">
-            {cart.length === 0 && (
-              <div className="flex flex-col items-center justify-center h-full text-gray-300 gap-2">
-                <span className="text-4xl">🛒</span>
-                <p className="text-xs">Belum ada item</p>
-              </div>
-            )}
-            {cart.map(item => (
-              <div key={`${item.id}-${item.variant ?? ''}`} className="flex items-center gap-2 bg-gray-50 rounded-lg px-3 py-2">
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs font-medium truncate">{item.name}</p>
-                  <p className="text-[11px] text-gray-500">
-                    {fmt(item.price)} × {item.qty} = {fmt(item.price * item.qty)}
-                  </p>
+          <div className="flex-1 min-h-0 overflow-y-auto flex flex-col scrollbar-thin">
+            <div className="px-3 py-3 flex flex-col gap-2">
+              {cart.length === 0 && (
+                <div className="flex flex-col items-center justify-center py-8 text-gray-300 gap-2">
+                  <span className="text-4xl">🛒</span>
+                  <p className="text-xs">Belum ada item</p>
                 </div>
-                <div className="flex items-center gap-1">
-                  <button onClick={() => changeQty(item.id, item.variant, -0.5)} className="w-6 h-6 rounded border border-gray-200 bg-white flex items-center justify-center hover:bg-gray-100 text-gray-500 text-xs font-bold">½-</button>
-                  <button onClick={() => changeQty(item.id, item.variant, -1)} className="w-6 h-6 rounded border border-gray-200 bg-white flex items-center justify-center hover:bg-gray-100"><Minus size={11}/></button>
-                  <input type="number" step="0.001" min="0.001" value={item.qty}
-                    onChange={e => { const v = parseFloat(e.target.value); if (v > 0) changeQty(item.id, item.variant, v - item.qty) }}
-                    className="text-xs font-medium w-12 text-center border border-gray-200 rounded bg-white outline-none focus:border-brand-400 px-1 py-0.5" />
-                  <button onClick={() => changeQty(item.id, item.variant, 1)} className="w-6 h-6 rounded border border-gray-200 bg-white flex items-center justify-center hover:bg-gray-100"><Plus size={11}/></button>
+              )}
+              {cart.map(item => (
+                <div key={`${item.id}-${item.variant ?? ''}`} className="flex items-center gap-2 bg-gray-50 rounded-lg px-3 py-2">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-medium truncate">{item.name}</p>
+                    <p className="text-[11px] text-gray-500">
+                      {fmt(item.price)} × {item.qty} = {fmt(item.price * item.qty)}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <button onClick={() => changeQty(item.id, item.variant, -0.5)} className="w-6 h-6 rounded border border-gray-200 bg-white flex items-center justify-center hover:bg-gray-100 text-gray-500 text-xs font-bold">½-</button>
+                    <button onClick={() => changeQty(item.id, item.variant, -1)} className="w-6 h-6 rounded border border-gray-200 bg-white flex items-center justify-center hover:bg-gray-100"><Minus size={11}/></button>
+                    <input type="number" step="0.001" min="0.001" value={item.qty}
+                      onChange={e => { const v = parseFloat(e.target.value); if (v > 0) changeQty(item.id, item.variant, v - item.qty) }}
+                      className="text-xs font-medium w-12 text-center border border-gray-200 rounded bg-white outline-none focus:border-brand-400 px-1 py-0.5" />
+                    <button onClick={() => changeQty(item.id, item.variant, 1)} className="w-6 h-6 rounded border border-gray-200 bg-white flex items-center justify-center hover:bg-gray-100"><Plus size={11}/></button>
+                  </div>
+                  <button onClick={() => removeFromCart(item.id, item.variant)} className="w-6 h-6 rounded border border-gray-200 flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 hover:border-red-200 transition">
+                    <Trash2 size={11}/>
+                  </button>
                 </div>
-                <button onClick={() => removeFromCart(item.id, item.variant)} className="w-6 h-6 rounded border border-gray-200 flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 hover:border-red-200 transition">
-                  <Trash2 size={11}/>
-                </button>
+              ))}
+            </div>
+            {/* Summary sticky di bawah — mengikuti scroll & selalu terlihat */}
+            <div className="sticky bottom-0 px-4 py-4 border-t border-gray-200 bg-white flex flex-col gap-3">
+              <div className="flex justify-between text-xs text-gray-500">
+                <span>Subtotal</span><span>{fmt(total)}</span>
               </div>
-            ))}
+              <div className="flex justify-between text-base font-semibold">
+                <span>Total</span><span>{fmt(total)}</span>
+              </div>
+              <button onClick={() => { setCashInput(''); setShowPay(true) }} disabled={cart.length === 0} className="btn-blue w-full py-3">
+                Bayar Sekarang
+              </button>
+            </div>
           </div>
         </div>
       </main>
