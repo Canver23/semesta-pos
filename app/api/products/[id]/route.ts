@@ -10,6 +10,7 @@ function mapProduct(row: Record<string, unknown>): Product {
     size:           row.size as string,
     unit:           row.unit as string,
     price:          row.price as number,
+    cost:           (row.cost as number) ?? 0,
     stock:          row.stock as number,
     bestseller:     row.bestseller as boolean,
     priceWholesale: (row.price_wholesale as number) ?? 0,
@@ -26,6 +27,7 @@ function toDbRow(p: Partial<Product>) {
   if (p.size           !== undefined) row.size            = p.size
   if (p.unit           !== undefined) row.unit            = p.unit
   if (p.price          !== undefined) row.price           = p.price
+  if (p.cost           !== undefined) row.cost            = p.cost
   if (p.stock          !== undefined) row.stock           = p.stock
   if (p.bestseller     !== undefined) row.bestseller      = p.bestseller
   if (p.priceWholesale !== undefined) row.price_wholesale = p.priceWholesale

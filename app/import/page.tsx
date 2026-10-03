@@ -12,6 +12,7 @@ interface ParsedProduct {
   size: string
   unit: string
   price: number    // harga umum
+  cost?: number    // harga modal (opsional)
   stock: number
 }
 
@@ -211,7 +212,8 @@ export default function ImportPage() {
   variants: [],             // Default varian kosong
   priceWholesale: 0,        // Default harga grosir 0
   unitWholesale: p.unit,    // Default satuan grosir disamakan dengan satuan eceran
-  qtyWholesale: 0           // Default minimal grosir 0
+  qtyWholesale: 0,          // Default minimal grosir 0
+  cost: p.cost ?? 0         // Default harga modal 0
 })
           prodCount++
         }

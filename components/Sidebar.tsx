@@ -3,7 +3,7 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import {
   ShoppingCart, LayoutDashboard, Package,
-  Users, FileText, Clock, BarChart2, Upload, CloudUpload, Menu, X, LogOut, ClipboardList, Sheet, Camera,
+  Users, FileText, Clock, BarChart2, Upload, CloudUpload, Menu, X, LogOut, ClipboardList, Sheet, Camera, Calculator,
 } from 'lucide-react'
 import { clsx } from 'clsx'
 import { useState, useEffect } from 'react'
@@ -13,6 +13,7 @@ const NAV = [
   { href: '/',           label: 'Kasir',      icon: ShoppingCart    },
   { href: '/dashboard',  label: 'Dashboard',  icon: LayoutDashboard },
   { href: '/inventory',  label: 'Inventori',  icon: Package         },
+  { href: '/modal',      label: 'Harga Modal', icon: Calculator      },
   { href: '/customers',  label: 'Pelanggan',  icon: Users           },
   { href: '/invoices',   label: 'Invoice',    icon: FileText        },
   { href: '/reports',    label: 'Laporan',    icon: BarChart2       },
@@ -34,7 +35,7 @@ const BOTTOM_NAV = [
 ]
 
 // Admin-only nav items
-const ADMIN_ONLY = ['/dashboard', '/inventory', '/reports', '/import', '/migrate']
+const ADMIN_ONLY = ['/dashboard', '/inventory', '/modal', '/reports', '/import', '/migrate']
 
 export default function Sidebar() {
   const path     = usePathname()

@@ -13,6 +13,7 @@ export interface Product {
   size: string
   unit: string
   price: number       // harga eceran (default / harga umum)
+  cost: number        // harga modal (harga beli per satuan)
   stock: number
   bestseller: boolean
 

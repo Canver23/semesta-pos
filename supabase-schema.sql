@@ -11,10 +11,14 @@ create table if not exists products (
   size        text not null default '',
   unit        text not null default 'Pcs',
   price       integer not null default 0,
+  cost        integer not null default 0,
   stock       integer not null default 0,
   bestseller  boolean not null default false,
   created_at  timestamptz default now()
 );
+
+-- ── Migrasi: tambah kolom harga modal (untuk DB yang sudah ada) ──
+alter table products add column if not exists cost integer not null default 0;
 
 -- Custom categories
 create table if not exists custom_categories (

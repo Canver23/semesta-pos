@@ -13,6 +13,7 @@ export type DbProduct = {
   size: string
   unit: string
   price: number
+  cost: number
   stock: number
   bestseller: boolean
   created_at?: string

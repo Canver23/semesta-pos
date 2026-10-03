@@ -9,7 +9,7 @@ import { Pencil, Trash2, Tags, Plus, X } from 'lucide-react'
 
 const EMPTY: Omit<Product, 'id'> = {
   name: '', category: 'Sterofoam', size: '', unit: 'Pcs',
-  price: 0, stock: 0, bestseller: false,
+  price: 0, cost: 0, stock: 0, bestseller: false,
   priceWholesale: 0, unitWholesale: '', qtyWholesale: 0,
   variants: [],
 }
@@ -90,11 +90,11 @@ export default function InventoryPage() {
         <table className="data-table">
           <thead><tr>
             <th>Nama Produk</th><th>Kategori</th><th>Ukuran</th>
-            <th>Satuan</th><th>Harga Eceran</th><th>Harga Grosir</th>
+            <th>Satuan</th><th>Harga Eceran</th><th>Harga Modal</th><th>Harga Grosir</th>
             <th>Varian</th><th>Stok</th><th>Aksi</th>
           </tr></thead>
           <tbody>
-            {filtered.length === 0 && <tr><td colSpan={9} className="text-center py-10 text-gray-400">Tidak ada produk</td></tr>}
+            {filtered.length === 0 && <tr><td colSpan={10} className="text-center py-10 text-gray-400">Tidak ada produk</td></tr>}
             {filtered.map(p => (
               <tr key={p.id}>
                 <td>
@@ -105,6 +105,7 @@ export default function InventoryPage() {
                 <td className="text-gray-500">{p.size || '-'}</td>
                 <td className="text-gray-500">{p.unit}</td>
                 <td className="font-medium text-brand-600">{fmt(p.price)}<span className="text-gray-400 text-xs">/{p.unit}</span></td>
+                <td className={p.cost > 0 ? 'text-gray-700 font-medium' : 'text-gray-300'}>{p.cost > 0 ? fmt(p.cost) : '—'}</td>
                 <td>
                   {p.priceWholesale > 0
                     ? <span className="text-green-700 font-medium">{fmt(p.priceWholesale)}<span className="text-gray-400 text-xs">/{p.unitWholesale}</span></span>
@@ -183,6 +184,26 @@ export default function InventoryPage() {
                     Tandai Terlaris
                   </label>
                 </div>
+              </div>
+            </div>
+
+            {/* Cost / modal price */}
+            <div className="border border-gray-200 rounded-xl p-4">
+              <p className="text-sm font-medium mb-3">🏷️ Harga Modal <span className="text-xs text-gray-400 font-normal">(harga beli per satuan)</span></p>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs text-gray-500 block mb-1">Modal per {form.unit || 'Pcs'} (Rp)</label>
+                  <input className="input" type="number" value={form.cost || ''} onChange={e => f('cost', parseFloat(e.target.value) || 0)} placeholder="0"/>
+                </div>
+                {form.price > 0 && (
+                  <div className="flex items-end pb-1">
+                    <span className={`text-sm font-medium ${form.cost > 0 ? (form.cost < form.price ? 'text-green-700' : 'text-red-600') : 'text-gray-400'}`}>
+                      {form.cost > 0
+                        ? `Keuntungan: ${fmt(form.price - form.cost)} (${Math.round(((form.price - form.cost) / form.price) * 100)}%)`
+                        : 'Isi modal untuk melihat keuntungan'}
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
 

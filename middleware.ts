@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
-const ADMIN_ONLY = ['/dashboard', '/inventory', '/reports', '/import', '/migrate']
+const ADMIN_ONLY = ['/dashboard', '/inventory', '/modal', '/reports', '/import', '/migrate']
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
