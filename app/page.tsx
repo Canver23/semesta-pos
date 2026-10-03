@@ -280,7 +280,7 @@ export default function PosPage() {
             ))}
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 overflow-y-auto flex-1 scrollbar-thin">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 overflow-y-auto flex-1 scrollbar-thin pb-[52vh] md:pb-0">
             {filtered.length === 0 && (
               <p className="col-span-full text-center text-gray-400 text-sm py-16">Produk tidak ditemukan</p>
             )}
@@ -331,7 +331,7 @@ export default function PosPage() {
         </div>
 
         {/* ── Right: Cart ──────────────────────────────── */}
-        <div className="w-full md:w-72 flex flex-col bg-white border-t md:border-t-0 md:border-l border-gray-200 max-h-[50vh] md:max-h-none md:min-h-0">
+        <div className="fixed inset-x-0 bottom-14 z-30 md:static md:inset-auto md:bottom-auto md:z-auto w-full md:w-72 flex flex-col bg-white border-t md:border-t-0 md:border-l border-gray-200 rounded-t-2xl md:rounded-none shadow-[0_-8px_30px_rgba(0,0,0,0.12)] md:shadow-none max-h-[55vh] md:max-h-none md:min-h-0">
           <div className="px-4 py-3 border-b border-gray-200">
             <p className="font-medium text-sm">Order Saat Ini</p>
             <p className="text-xs text-gray-400">{cart.reduce((s, i) => s + i.qty, 0)} item</p>
