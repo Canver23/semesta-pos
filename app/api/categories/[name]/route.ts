@@ -1,8 +1,10 @@
 import { NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { createServerClient } from '@/lib/supabase'
 
-export async function DELETE(_: Request, { params }: { params: { name: string } }) {
-  const name = decodeURIComponent(params.name)
+export async function DELETE(_: Request, { params }: { params: Promise<{ name: string }> }) {
+  const supabase = createServerClient()
+  const { name: rawName } = await params
+  const name = decodeURIComponent(rawName)
   const { error } = await supabase
     .from('custom_categories')
     .delete()

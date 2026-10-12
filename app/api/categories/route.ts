@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { createServerClient } from '@/lib/supabase'
 
 export async function GET() {
+  const supabase = createServerClient()
   const { data, error } = await supabase
     .from('custom_categories')
     .select('name')
@@ -11,6 +12,7 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
+  const supabase = createServerClient()
   const { name } = await req.json()
   const { data, error } = await supabase
     .from('custom_categories')

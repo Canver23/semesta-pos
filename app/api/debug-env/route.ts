@@ -1,27 +1,21 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
+import { NextResponse } from 'next/server'
 
-export async function GET(request: NextRequest) {
+// Endpoint debug HANYA aktif di mode development.
+// Di production mengembalikan 404 agar tidak membocorkan konfigurasi.
+export async function GET() {
+  if (process.env.NODE_ENV === 'production') {
+    return NextResponse.json({ error: 'Not found' }, { status: 404 })
+  }
+
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
   const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
-
-  // Mask key untuk keamanan
   const maskedKey = supabaseKey ? supabaseKey.substring(0, 10) + '...' : '(kosong)'
 
-  const info = {
+  return NextResponse.json({
     supabaseUrl,
     supabaseKeyLen: supabaseKey.length,
     maskedKey,
-    test: null as any,
-  }
-
-  if (supabaseUrl && supabaseKey) {
-    const supabase = createClient(supabaseUrl, supabaseKey, { auth: { persistSession: false } })
-    const { data, error } = await supabase.from('rekap_paket').select('*').limit(5)
-    info.test = { rows: data?.length ?? 0, error: error?.message || null, sample: data?.slice(0, 2) || [] }
-  }
-
-  return NextResponse.json(info)
+  })
 }
 
 export const dynamic = 'force-dynamic'
