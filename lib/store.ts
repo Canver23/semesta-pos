@@ -24,6 +24,7 @@ interface StoreState {
   loading: boolean
   initialized: boolean
   loadAll: () => Promise<void>
+  resetData: () => void
 
   products: Product[]
   addProduct: (p: Omit<Product, 'id'>) => Promise<void>
@@ -72,8 +73,11 @@ export const useStore = create<StoreState>()((set, get) => ({
     if (get().initialized) return
     set({ loading: true })
     try {
+      // Promise.allSettled: bila SATU endpoint gagal (mis. 403 untuk role
+      // kasir), endpoint lain tetap dimuat. Sebelumnya Promise.all membuat
+      // SELURUH data hilang dari layar begitu satu request ditolak.
       const [products, customers, invoices, transactions, attendance, categories] =
-        await Promise.all([
+        await Promise.allSettled([
           api<Product[]>('/api/products'),
           api<Customer[]>('/api/customers'),
           api<Invoice[]>('/api/invoices'),
@@ -81,13 +85,20 @@ export const useStore = create<StoreState>()((set, get) => ({
           api<AttendanceLog[]>('/api/attendance'),
           api<{ name: string }[]>('/api/categories'),
         ])
+
+      const ok = <T>(r: PromiseSettledResult<T>, fallback: T): T => {
+        if (r.status === 'fulfilled') return r.value ?? fallback
+        console.error('Gagal memuat sebagian data:', r.reason)
+        return fallback
+      }
+
       set({
-        products:         products ?? [],
-        customers:        customers ?? [],
-        invoices:         invoices ?? [],
-        transactions:     transactions ?? [],
-        attendanceLogs:   attendance ?? [],
-        customCategories: (categories ?? []).map((c: { name: string }) => c.name),
+        products:         ok(products, []),
+        customers:        ok(customers, []),
+        invoices:         ok(invoices, []),
+        transactions:     ok(transactions, []),
+        attendanceLogs:   ok(attendance, []),
+        customCategories: ok(categories, []).map((c: { name: string }) => c.name),
         initialized: true,
       })
     } catch (e) {
@@ -96,6 +107,20 @@ export const useStore = create<StoreState>()((set, get) => ({
       set({ loading: false })
     }
   },
+
+  // Bersihkan data saat keluar / pindah ke halaman login, supaya
+  // pengguna berikutnya tidak melihat sisa data dan loadAll bisa jalan lagi.
+  resetData: () => set({
+    initialized: false,
+    loading: false,
+    products: [],
+    customers: [],
+    invoices: [],
+    transactions: [],
+    attendanceLogs: [],
+    customCategories: [],
+    cart: [],
+  }),
 
   // ── Products ───────────────────────────────────────────────
   products: [],

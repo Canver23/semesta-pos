@@ -8,16 +8,22 @@ const ADMIN_ONLY_PAGES = [
   '/import', '/migrate', '/spreadsheet',
 ]
 
-// Prefix API yang hanya boleh diakses admin
+// API yang HANYA boleh diakses admin (semua method)
 const ADMIN_ONLY_API = [
-  '/api/products', '/api/customers', '/api/categories',
-  '/api/invoices', '/api/migrate', '/api/spreadsheet',
+  '/api/customers', '/api/invoices', '/api/migrate', '/api/spreadsheet',
 ]
 
-// Prefix API yang boleh diakses kasir maupun admin
+// API yang boleh diakses kasir maupun admin (semua method)
 const KASIR_API = [
   '/api/transactions', '/api/attendance',
   '/api/rekap', '/api/foto-paket',
+]
+
+// API yang boleh DIBACA kasir (GET saja) — dibutuhkan halaman kasir untuk
+// menampilkan daftar produk & kategori. Tulis (POST/DELETE) tetap admin-only,
+// kecuali update stok produk saat checkout (PUT, lihat pengecualian di bawah).
+const KASIR_READ_API = [
+  '/api/products', '/api/categories',
 ]
 
 function isPublicApi(pathname: string): boolean {
@@ -38,18 +44,34 @@ export async function middleware(request: NextRequest) {
       return NextResponse.json({ error: 'Tidak terautentikasi' }, { status: 401 })
     }
 
-    const isAdminApi = ADMIN_ONLY_API.some(p => pathname.startsWith(p))
-    const isKasirApi = KASIR_API.some(p => pathname.startsWith(p))
+    // Admin boleh mengakses semua endpoint
+    if (session.role === 'admin') return NextResponse.next()
 
-    if (isAdminApi && session.role !== 'admin') {
+    // ── Kasir: hanya endpoint yang diizinkan ──────────────────
+    const method = request.method.toUpperCase()
+    const isAdminApi  = ADMIN_ONLY_API.some(p => pathname.startsWith(p))
+    const isKasirApi  = KASIR_API.some(p => pathname.startsWith(p))
+    const isKasirRead = KASIR_READ_API.some(p => pathname.startsWith(p))
+
+    // Kasir tidak boleh reset/hapus data transaksi (endpoint DELETE)
+    if (pathname.startsWith('/api/transactions') && method === 'DELETE') {
       return NextResponse.json({ error: 'Akses ditolak' }, { status: 403 })
     }
-    // Endpoint API tak dikenal: hanya admin
-    if (!isAdminApi && !isKasirApi && session.role !== 'admin') {
+
+    if (isAdminApi) {
       return NextResponse.json({ error: 'Akses ditolak' }, { status: 403 })
     }
+    if (isKasirApi) return NextResponse.next()
 
-    return NextResponse.next()
+    // Kasir boleh MEMBACA produk & kategori (dipakai halaman POS)
+    if (isKasirRead && method === 'GET') return NextResponse.next()
+
+    // Kasir perlu memperbarui stok produk saat menyelesaikan transaksi
+    if (method === 'PUT' && /^\/api\/products\/[^/]+$/.test(pathname)) {
+      return NextResponse.next()
+    }
+
+    return NextResponse.json({ error: 'Akses ditolak' }, { status: 403 })
   }
 
   // ── Halaman: redirect ke /login bila belum login ─────────────
