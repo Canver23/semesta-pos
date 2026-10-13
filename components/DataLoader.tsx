@@ -1,13 +1,22 @@
 'use client'
 import { useEffect } from 'react'
+import { usePathname } from 'next/navigation'
 import { useStore } from '@/lib/store'
 
 export default function DataLoader() {
-  const { loadAll, loading, initialized } = useStore()
+  const { loadAll, resetData, loading, initialized } = useStore()
+  const pathname = usePathname()
 
   useEffect(() => {
+    // Halaman login belum punya sesi → jangan memuat data (semua request
+    // akan 401 dan store "terkunci" tanpa data). Bersihkan sisa data
+    // pengguna sebelumnya.
+    if (pathname.startsWith('/login')) {
+      resetData()
+      return
+    }
     loadAll()
-  }, [loadAll])
+  }, [pathname, loadAll, resetData])
 
   if (!initialized && loading) {
     return (
