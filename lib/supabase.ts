@@ -1,9 +1,29 @@
 import { createClient } from '@supabase/supabase-js'
 
-const supabaseUrl  = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseKey  = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+// Server-only Supabase client.
+// Prioritas: SERVICE_ROLE key (bypass RLS, hanya boleh dipakai di server).
+// Fallback: anon key untuk kompatibilitas (RLS allow_all → tidak aman).
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
+const serviceKey  = process.env.SUPABASE_SERVICE_ROLE_KEY || ''
+const anonKey     = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
 
-export const supabase = createClient(supabaseUrl, supabaseKey)
+if (!supabaseUrl) {
+  console.error('[supabase] NEXT_PUBLIC_SUPABASE_URL belum diset')
+}
+if (!serviceKey && process.env.NODE_ENV === 'production') {
+  console.warn('[supabase] SUPABASE_SERVICE_ROLE_KEY belum diset — memakai anon key. ' +
+    'Set service role key + aktifkan RLS agar database tidak bisa diakses langsung dari browser.')
+}
+
+/** 
+ * Server-only Supabase client (service role bila tersedia).
+ * Lazy instantiation — tidak crash saat build bila env belum diset.
+ */
+export function createServerClient() {
+  return createClient(supabaseUrl, serviceKey || anonKey, {
+    auth: { persistSession: false },
+  })
+}
 
 // ─── Database types (matches Supabase tables) ─────────────────
 export type DbProduct = {

@@ -1,13 +1,15 @@
 import { NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { createServerClient } from '@/lib/supabase'
 
 // PUT — update status only (Lunas / Belum Lunas)
-export async function PUT(req: Request, { params }: { params: { id: string } }) {
+export async function PUT(req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const supabase = createServerClient()
+  const { id } = await params
   const body = await req.json()
   const { data, error } = await supabase
     .from('invoices')
     .update({ status: body.status })
-    .eq('id', params.id)
+    .eq('id', id)
     .select()
     .single()
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
@@ -15,7 +17,9 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
 }
 
 // PATCH — update invoice content (items, pelanggan, tanggal, dll)
-export async function PATCH(req: Request, { params }: { params: { id: string } }) {
+export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const supabase = createServerClient()
+  const { id } = await params
   const body = await req.json()
 
   // Only update fields that were sent
@@ -31,7 +35,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   const { data, error } = await supabase
     .from('invoices')
     .update(update)
-    .eq('id', params.id)
+    .eq('id', id)
     .select()
     .single()
 
@@ -52,11 +56,13 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
 }
 
 // DELETE — hapus invoice
-export async function DELETE(_: Request, { params }: { params: { id: string } }) {
+export async function DELETE(_: Request, { params }: { params: Promise<{ id: string }> }) {
+  const supabase = createServerClient()
+  const { id } = await params
   const { error } = await supabase
     .from('invoices')
     .delete()
-    .eq('id', params.id)
+    .eq('id', id)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ success: true })
 }

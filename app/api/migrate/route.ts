@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { createServerClient } from '@/lib/supabase'
 
 export async function POST(req: Request) {
+  const supabase = createServerClient()
   const { products, customers, invoices, transactions, attendanceLogs, customCategories } = await req.json()
   const results: Record<string, unknown> = {}
   const errors: string[] = []

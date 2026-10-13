@@ -7,7 +7,7 @@ import {
 } from 'lucide-react'
 import { clsx } from 'clsx'
 import { useState, useEffect } from 'react'
-import { getSession, clearSession, type Role } from '@/lib/auth'
+import { getSession, logout, type Role } from '@/lib/auth-client'
 
 const NAV = [
   { href: '/',           label: 'Kasir',      icon: ShoppingCart    },
@@ -35,7 +35,7 @@ const BOTTOM_NAV = [
 ]
 
 // Admin-only nav items
-const ADMIN_ONLY = ['/dashboard', '/inventory', '/modal', '/reports', '/import', '/migrate']
+const ADMIN_ONLY = ['/dashboard', '/inventory', '/modal', '/reports', '/import', '/migrate', '/spreadsheet']
 
 export default function Sidebar() {
   const path     = usePathname()
@@ -45,13 +45,14 @@ export default function Sidebar() {
   const [userName, setUserName] = useState('')
 
   useEffect(() => {
-    const s = getSession()
-    setRole(s?.role ?? null)
-    setUserName(s?.name ?? '')
+    getSession().then(s => {
+      setRole(s?.role ?? null)
+      setUserName(s?.name ?? '')
+    })
   }, [])
 
-  function handleLogout() {
-    clearSession()
+  async function handleLogout() {
+    await logout()
     router.replace('/login')
   }
 

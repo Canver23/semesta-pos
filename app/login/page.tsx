@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { verifyPin, verifyAdmin, setSession, isAuthenticated } from '@/lib/auth'
+import { loginKasir, loginAdmin, getSession } from '@/lib/auth-client'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -12,46 +12,59 @@ export default function LoginPage() {
   const [error, setError]     = useState('')
   const [shake, setShake]     = useState(false)
   const [showPass, setShowPass] = useState(false)
+  const [busy, setBusy]       = useState(false)
+  const [pinLength, setPinLength] = useState(4)
   const userRef = useRef<HTMLInputElement>(null)
 
-  const PIN_LENGTH = (process.env.NEXT_PUBLIC_KASIR_PIN || '1234').length
-
+  // Sudah login? langsung ke kasir
   useEffect(() => {
-    if (isAuthenticated()) router.replace('/')
+    getSession().then(s => { if (s) router.replace('/') })
   }, [router])
+
+  // Ambil panjang PIN (info non-rahasia dari server)
+  useEffect(() => {
+    fetch('/api/auth/config')
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d?.pinLength) setPinLength(d.pinLength) })
+      .catch(() => {})
+  }, [])
 
   useEffect(() => {
     if (tab === 'admin') setTimeout(() => userRef.current?.focus(), 100)
   }, [tab])
 
   // ── PIN handlers ──────────────────────────────────────
-  function handlePinPress(val: string) {
+  async function handlePinPress(val: string) {
+    if (busy) return
     if (val === 'del') { setPin(p => p.slice(0, -1)); setError(''); return }
-    if (pin.length >= PIN_LENGTH) return
+    if (pin.length >= pinLength) return
     const next = pin + val
     setPin(next)
     setError('')
-    if (next.length === PIN_LENGTH) {
-      setTimeout(() => {
-        if (verifyPin(next)) {
-          setSession('kasir')
-          router.replace('/')
-        } else {
-          triggerError('PIN salah, coba lagi')
-          setTimeout(() => setPin(''), 500)
-        }
-      }, 100)
+    if (next.length === pinLength) {
+      setBusy(true)
+      const res = await loginKasir(next)
+      setBusy(false)
+      if (res.ok) {
+        router.replace('/')
+      } else {
+        triggerError(res.error ?? 'PIN salah, coba lagi')
+        setTimeout(() => setPin(''), 500)
+      }
     }
   }
 
   // ── Admin handler ─────────────────────────────────────
-  function handleAdminLogin(e: React.FormEvent) {
+  async function handleAdminLogin(e: React.FormEvent) {
     e.preventDefault()
-    if (verifyAdmin(user.trim(), pass)) {
-      setSession('admin')
+    if (busy) return
+    setBusy(true)
+    const res = await loginAdmin(user.trim(), pass)
+    setBusy(false)
+    if (res.ok) {
       router.replace('/')
     } else {
-      triggerError('Username atau password salah')
+      triggerError(res.error ?? 'Username atau password salah')
     }
   }
 
@@ -104,7 +117,7 @@ export default function LoginPage() {
 
               {/* PIN dots */}
               <div className={`flex justify-center gap-3 mb-2 ${shake ? 'animate-bounce' : ''}`}>
-                {Array.from({ length: PIN_LENGTH }).map((_, i) => (
+                {Array.from({ length: pinLength }).map((_, i) => (
                   <div key={i} className={`w-4 h-4 rounded-full border-2 transition-all ${
                     i < pin.length
                       ? 'bg-brand-400 border-brand-400 scale-110'
@@ -185,10 +198,10 @@ export default function LoginPage() {
 
               <button
                 type="submit"
-                disabled={!user || !pass}
+                disabled={!user || !pass || busy}
                 className="btn-blue py-3 mt-1"
               >
-                Masuk sebagai Admin
+                {busy ? 'Memproses…' : 'Masuk sebagai Admin'}
               </button>
             </form>
           )}

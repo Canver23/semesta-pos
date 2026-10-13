@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
+import { createServerClient } from '@/lib/supabase'
 
 export async function POST(request: NextRequest) {
   try {
@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Supabase not configured' }, { status: 500 })
     }
 
-    const supabase = createClient(supabaseUrl, supabaseKey, { auth: { persistSession: false } })
+    const supabase = createServerClient()
 
     const base64 = imageDataUrl.replace(/^data:image\/\w+;base64,/, '')
     const buf = Buffer.from(base64, 'base64')

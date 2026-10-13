@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { createServerClient } from '@/lib/supabase'
 import type { Product } from '@/lib/types'
 
 function mapProduct(row: Record<string, unknown>): Product {
@@ -37,24 +37,28 @@ function toDbRow(p: Partial<Product>) {
   return row
 }
 
-export async function PUT(req: Request, { params }: { params: { id: string } }) {
+export async function PUT(req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const supabase = createServerClient()
+  const { id } = await params
   const body = await req.json()
   const row  = toDbRow(body)
   const { data, error } = await supabase
     .from('products')
     .update(row)
-    .eq('id', params.id)
+    .eq('id', id)
     .select()
     .single()
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json(mapProduct(data))
 }
 
-export async function DELETE(_: Request, { params }: { params: { id: string } }) {
+export async function DELETE(_: Request, { params }: { params: Promise<{ id: string }> }) {
+  const supabase = createServerClient()
+  const { id } = await params
   const { error } = await supabase
     .from('products')
     .delete()
-    .eq('id', params.id)
+    .eq('id', id)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ success: true })
 }

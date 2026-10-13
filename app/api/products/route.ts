@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { createServerClient } from '@/lib/supabase'
 import type { Product } from '@/lib/types'
 
 // Map DB row (snake_case) → frontend Product (camelCase)
@@ -40,6 +40,7 @@ function toDbRow(p: Partial<Product>) {
 }
 
 export async function GET() {
+  const supabase = createServerClient()
   const { data, error } = await supabase
     .from('products')
     .select('*')
@@ -49,6 +50,7 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
+  const supabase = createServerClient()
   const body = await req.json()
   const row  = toDbRow(body)
   const { data, error } = await supabase

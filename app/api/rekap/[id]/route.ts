@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
+import { createServerClient } from '@/lib/supabase'
 
-export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const { id } = await params
     const body = await request.json()
     const { nama, berat, marketplace, courier, resi } = body
 
@@ -12,7 +13,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
       return NextResponse.json({ error: 'Supabase not configured' }, { status: 500 })
     }
 
-    const supabase = createClient(supabaseUrl, supabaseKey, { auth: { persistSession: false } })
+    const supabase = createServerClient()
 
     const updates: Record<string, string> = {}
     if (nama !== undefined) updates.nama = nama
@@ -21,7 +22,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
     if (courier !== undefined) updates.courier = courier
     if (resi !== undefined) updates.resi = resi
 
-    const { error } = await supabase.from('rekap_paket').update(updates).eq('id', params.id)
+    const { error } = await supabase.from('rekap_paket').update(updates).eq('id', id)
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
@@ -33,17 +34,18 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
   }
 }
 
-export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const { id } = await params
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
     const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
     if (!supabaseUrl || !supabaseKey) {
       return NextResponse.json({ error: 'Supabase not configured' }, { status: 500 })
     }
 
-    const supabase = createClient(supabaseUrl, supabaseKey, { auth: { persistSession: false } })
+    const supabase = createServerClient()
 
-    const { error } = await supabase.from('rekap_paket').delete().eq('id', params.id)
+    const { error } = await supabase.from('rekap_paket').delete().eq('id', id)
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
