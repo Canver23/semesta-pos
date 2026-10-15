@@ -7,6 +7,7 @@ import { fmt, UNITS } from '@/lib/utils'
 import type { Customer, CustomerPrice } from '@/lib/types'
 import { Pencil, Trash2, Plus, X, FileText } from 'lucide-react'
 import { useRouter } from 'next/navigation'
+import { useRole } from '@/lib/use-role'
 
 const EMPTY_CUST: Omit<Customer, 'id'> = {
   name: '', phone: '', email: '', address: '', prices: [],
@@ -15,6 +16,7 @@ const EMPTY_CUST: Omit<Customer, 'id'> = {
 export default function CustomersPage() {
   const { customers, products, addCustomer, updateCustomer, deleteCustomer } = useStore()
   const router = useRouter()
+  const role   = useRole()
   const [search, setSearch]   = useState('')
   const [modal, setModal]     = useState(false)
   const [editing, setEditing] = useState<Customer | null>(null)
@@ -107,12 +109,14 @@ export default function CustomersPage() {
                     >
                       <FileText size={12} /> Invoice
                     </button>
-                    <button
-                      onClick={() => { if (confirm(`Hapus ${c.name}?`)) deleteCustomer(c.id).catch(console.error) }}
-                      className="btn btn-danger btn-sm"
-                    >
-                      <Trash2 size={12} />
-                    </button>
+                    {role !== 'kasir' && (
+                      <button
+                        onClick={() => { if (confirm(`Hapus ${c.name}?`)) deleteCustomer(c.id).catch(console.error) }}
+                        className="btn btn-danger btn-sm"
+                      >
+                        <Trash2 size={12} />
+                      </button>
+                    )}
                   </div>
                 </td>
               </tr>

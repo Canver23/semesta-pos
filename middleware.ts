@@ -10,13 +10,16 @@ const ADMIN_ONLY_PAGES = [
 
 // API yang HANYA boleh diakses admin (semua method)
 const ADMIN_ONLY_API = [
-  '/api/customers', '/api/invoices', '/api/migrate', '/api/spreadsheet',
+  '/api/migrate', '/api/spreadsheet',
 ]
 
 // API yang boleh diakses kasir maupun admin (semua method)
+// Pelanggan & Invoice memang dipakai kasir untuk melayani pembeli, jadi
+// keduanya boleh dibaca DAN diubah kasir (hapus tetap dibatasi di halaman).
 const KASIR_API = [
   '/api/transactions', '/api/attendance',
   '/api/rekap', '/api/foto-paket',
+  '/api/customers', '/api/invoices',
 ]
 
 // API yang boleh DIBACA kasir (GET saja) — dibutuhkan halaman kasir untuk
@@ -55,6 +58,13 @@ export async function middleware(request: NextRequest) {
 
     // Kasir tidak boleh reset/hapus data transaksi (endpoint DELETE)
     if (pathname.startsWith('/api/transactions') && method === 'DELETE') {
+      return NextResponse.json({ error: 'Akses ditolak' }, { status: 403 })
+    }
+
+    // Kasir boleh lihat + tambah/ubah Pelanggan & Invoice, TAPI tidak
+    // boleh menghapus (hapus tetap hak admin).
+    if (method === 'DELETE' &&
+        (pathname.startsWith('/api/customers') || pathname.startsWith('/api/invoices'))) {
       return NextResponse.json({ error: 'Akses ditolak' }, { status: 403 })
     }
 

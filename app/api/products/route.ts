@@ -1,9 +1,12 @@
 import { NextResponse } from 'next/server'
 import { createServerClient } from '@/lib/supabase'
 import type { Product } from '@/lib/types'
+import { currentSession } from '@/lib/current-session'
 
 // Map DB row (snake_case) → frontend Product (camelCase)
-function mapProduct(row: Record<string, unknown>): Product {
+// `includeCost=false` (role kasir) → harga modal TIDAK dikirim ke browser,
+// supaya nilai beli/margin tidak bisa dibaca dari data produk.
+function mapProduct(row: Record<string, unknown>, includeCost = true): Product {
   return {
     id:             row.id as number,
     name:           row.name as string,
@@ -11,7 +14,7 @@ function mapProduct(row: Record<string, unknown>): Product {
     size:           row.size as string,
     unit:           row.unit as string,
     price:          row.price as number,
-    cost:           (row.cost as number) ?? 0,
+    cost:           includeCost ? ((row.cost as number) ?? 0) : 0,
     stock:          row.stock as number,
     bestseller:     row.bestseller as boolean,
     priceWholesale: (row.price_wholesale as number) ?? 0,
@@ -40,13 +43,15 @@ function toDbRow(p: Partial<Product>) {
 }
 
 export async function GET() {
+  const session = await currentSession()
+  const includeCost = session?.role === 'admin'
   const supabase = createServerClient()
   const { data, error } = await supabase
     .from('products')
     .select('*')
     .order('name')
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json((data ?? []).map(mapProduct))
+  return NextResponse.json((data ?? []).map(r => mapProduct(r, includeCost)))
 }
 
 export async function POST(req: Request) {

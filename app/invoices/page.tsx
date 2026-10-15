@@ -8,6 +8,7 @@ import { fmt, fmtDate, todayISO, UNITS, STORE_INFO } from '@/lib/utils'
 import type { Invoice, InvoiceItem } from '@/lib/types'
 import { Printer, Plus, X, Trash2, Eye, Smartphone, Monitor, Pencil, Download } from 'lucide-react'
 import { buildInvoiceHTML, buildThermalHTML, openPrintPopup } from '@/lib/print'
+import { useRole } from '@/lib/use-role'
 
 
 // ─────────────────────────────────────────────────────────────
@@ -492,6 +493,7 @@ function PrintSelector({ inv, onClose }: { inv: Invoice; onClose: () => void }) 
 // ─────────────────────────────────────────────────────────────
 function InvoicesContent() {
   const { invoices, updateInvoiceStatus, deleteInvoice } = useStore()
+  const role          = useRole()
   const searchParams  = useSearchParams()
   const defaultCustId = searchParams.get('custId') ?? undefined
 
@@ -590,11 +592,13 @@ function InvoicesContent() {
                       className="btn btn-outline btn-sm text-xs">
                       {inv.status === 'Lunas' ? 'Batal' : '✓ Lunas'}
                     </button>
-                    <button
-                      onClick={() => { if (confirm(`Hapus ${inv.id}?`)) deleteInvoice(inv.id).catch(console.error) }}
-                      className="btn btn-danger btn-sm">
-                      <Trash2 size={12} />
-                    </button>
+                    {role !== 'kasir' && (
+                      <button
+                        onClick={() => { if (confirm(`Hapus ${inv.id}?`)) deleteInvoice(inv.id).catch(console.error) }}
+                        className="btn btn-danger btn-sm">
+                        <Trash2 size={12} />
+                      </button>
+                    )}
                   </div>
                 </td>
               </tr>

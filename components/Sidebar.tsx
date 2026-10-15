@@ -25,13 +25,15 @@ const NAV = [
   { href: '/foto-paket', label: 'Foto Paket',  icon: Camera          },
 ]
 
-// Bottom nav items for mobile (5 most important)
+// Bottom nav items for mobile (5 most important).
+// `adminOnly` ditandai supaya kasir tidak melihat menu yang akan mental
+// balik ke `/` (middleware memblokir halamannya).
 const BOTTOM_NAV = [
-  { href: '/',           label: 'Kasir',     icon: ShoppingCart    },
-  { href: '/dashboard',  label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/inventory',  label: 'Inventori', icon: Package         },
-  { href: '/invoices',   label: 'Invoice',   icon: FileText        },
-  { href: '/customers',  label: 'Lainnya',   icon: Menu            },
+  { href: '/',           label: 'Kasir',     icon: ShoppingCart,    adminOnly: false },
+  { href: '/dashboard',  label: 'Dashboard', icon: LayoutDashboard, adminOnly: true  },
+  { href: '/inventory',  label: 'Inventori', icon: Package,         adminOnly: true  },
+  { href: '/invoices',   label: 'Invoice',   icon: FileText,        adminOnly: false },
+  { href: '/customers',  label: 'Lainnya',   icon: Menu,            adminOnly: false },
 ]
 
 // Admin-only nav items
@@ -61,6 +63,12 @@ export default function Sidebar() {
     if (role === 'admin') return true
     return !ADMIN_ONLY.some(p => href.startsWith(p))
   })
+
+  // Bottom-nav (mobile) juga disaring — sebelumnya kasir tetap melihat
+  // menu Dashboard/Inventori yang halamannya diblokir middleware.
+  const visibleBottom = BOTTOM_NAV.filter(
+    item => role === 'admin' || !item.adminOnly
+  )
 
   return (
     <>
@@ -149,7 +157,7 @@ export default function Sidebar() {
 
       {/* ── Mobile Bottom Nav ───────────────────────────── */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-gray-200 flex">
-        {BOTTOM_NAV.map(({ href, label, icon: Icon }) => {
+        {visibleBottom.map(({ href, label, icon: Icon }) => {
           const active = path === href
           // "Lainnya" opens drawer
           if (label === 'Lainnya') return (

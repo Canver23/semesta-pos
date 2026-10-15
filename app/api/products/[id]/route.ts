@@ -1,8 +1,10 @@
 import { NextResponse } from 'next/server'
 import { createServerClient } from '@/lib/supabase'
 import type { Product } from '@/lib/types'
+import { currentSession } from '@/lib/current-session'
 
-function mapProduct(row: Record<string, unknown>): Product {
+// `includeCost=false` (kasir) → harga modal tidak dibalas ke browser.
+function mapProduct(row: Record<string, unknown>, includeCost = true): Product {
   return {
     id:             row.id as number,
     name:           row.name as string,
@@ -10,7 +12,7 @@ function mapProduct(row: Record<string, unknown>): Product {
     size:           row.size as string,
     unit:           row.unit as string,
     price:          row.price as number,
-    cost:           (row.cost as number) ?? 0,
+    cost:           includeCost ? ((row.cost as number) ?? 0) : 0,
     stock:          row.stock as number,
     bestseller:     row.bestseller as boolean,
     priceWholesale: (row.price_wholesale as number) ?? 0,
@@ -38,10 +40,20 @@ function toDbRow(p: Partial<Product>) {
 }
 
 export async function PUT(req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const session = await currentSession()
+  const includeCost = session?.role === 'admin'
   const supabase = createServerClient()
   const { id } = await params
-  const body = await req.json()
-  const row  = toDbRow(body)
+  const raw = await req.json()
+  // Kasir hanya perlu memperbarui STOK saat checkout. Batasi field yang
+  // boleh mereka tulis supaya harga jual/modal/kategori tidak bisa diubah
+  // dari akun kasir.
+  const body: Record<string, unknown> = includeCost ? raw : {}
+  if (!includeCost) {
+    if (raw.stock    !== undefined) body.stock    = raw.stock
+    if (raw.variants !== undefined) body.variants = raw.variants
+  }
+  const row  = toDbRow(body as Partial<Product>)
   const { data, error } = await supabase
     .from('products')
     .update(row)
@@ -49,7 +61,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     .select()
     .single()
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json(mapProduct(data))
+  return NextResponse.json(mapProduct(data, includeCost))
 }
 
 export async function DELETE(_: Request, { params }: { params: Promise<{ id: string }> }) {
