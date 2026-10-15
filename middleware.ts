@@ -4,7 +4,7 @@ import { verifySessionToken, SESSION_COOKIE } from '@/lib/session'
 
 // Halaman yang hanya boleh diakses admin
 const ADMIN_ONLY_PAGES = [
-  '/dashboard', '/inventory', '/modal', '/reports',
+  '/dashboard', '/reports',
   '/import', '/migrate', '/spreadsheet',
 ]
 
@@ -22,10 +22,10 @@ const KASIR_API = [
   '/api/customers', '/api/invoices',
 ]
 
-// API yang boleh DIBACA kasir (GET saja) — dibutuhkan halaman kasir untuk
-// menampilkan daftar produk & kategori. Tulis (POST/DELETE) tetap admin-only,
-// kecuali update stok produk saat checkout (PUT, lihat pengecualian di bawah).
-const KASIR_READ_API = [
+// Produk & kategori: kasir boleh baca DAN tambah/ubah (dipakai halaman
+// Inventori & Harga Modal, plus update stok saat checkout). HAPUS tetap hak
+// admin supaya data produk tidak bisa dihilangkan dari akun kasir.
+const KASIR_STOK_API = [
   '/api/products', '/api/categories',
 ]
 
@@ -54,7 +54,7 @@ export async function middleware(request: NextRequest) {
     const method = request.method.toUpperCase()
     const isAdminApi  = ADMIN_ONLY_API.some(p => pathname.startsWith(p))
     const isKasirApi  = KASIR_API.some(p => pathname.startsWith(p))
-    const isKasirRead = KASIR_READ_API.some(p => pathname.startsWith(p))
+    const isStokApi   = KASIR_STOK_API.some(p => pathname.startsWith(p))
 
     // Kasir tidak boleh reset/hapus data transaksi (endpoint DELETE)
     if (pathname.startsWith('/api/transactions') && method === 'DELETE') {
@@ -73,13 +73,8 @@ export async function middleware(request: NextRequest) {
     }
     if (isKasirApi) return NextResponse.next()
 
-    // Kasir boleh MEMBACA produk & kategori (dipakai halaman POS)
-    if (isKasirRead && method === 'GET') return NextResponse.next()
-
-    // Kasir perlu memperbarui stok produk saat menyelesaikan transaksi
-    if (method === 'PUT' && /^\/api\/products\/[^/]+$/.test(pathname)) {
-      return NextResponse.next()
-    }
+    // Kasir boleh lihat + tambah/ubah produk & kategori (Inventori/Harga Modal)
+    if (isStokApi && method !== 'DELETE') return NextResponse.next()
 
     return NextResponse.json({ error: 'Akses ditolak' }, { status: 403 })
   }

@@ -6,6 +6,7 @@ import { useStore } from '@/lib/store'
 import { fmt, UNITS } from '@/lib/utils'
 import type { Product, ProductVariant } from '@/lib/types'
 import { Pencil, Trash2, Tags, Plus, X } from 'lucide-react'
+import { useRole } from '@/lib/use-role'
 
 const EMPTY: Omit<Product, 'id'> = {
   name: '', category: 'Sterofoam', size: '', unit: 'Pcs',
@@ -18,6 +19,7 @@ export default function InventoryPage() {
   const { products, addProduct, updateProduct, deleteProduct,
           allCategories, customCategories, addCategory, deleteCategory } = useStore()
   const categories = allCategories()
+  const role = useRole()
 
   const [search, setSearch]       = useState('')
   const [catFilter, setCatFilter] = useState('')
@@ -126,7 +128,9 @@ export default function InventoryPage() {
                 <td>
                   <div className="flex gap-1">
                     <button onClick={() => openEdit(p)} className="btn btn-outline btn-sm"><Pencil size={12}/> Edit</button>
-                    <button onClick={() => { if (confirm(`Hapus ${p.name}?`)) deleteProduct(p.id).catch(console.error) }} className="btn btn-danger btn-sm"><Trash2 size={12}/></button>
+                    {role !== 'kasir' && (
+                      <button onClick={() => { if (confirm(`Hapus ${p.name}?`)) deleteProduct(p.id).catch(console.error) }} className="btn btn-danger btn-sm"><Trash2 size={12}/></button>
+                    )}
                   </div>
                 </td>
               </tr>
@@ -315,9 +319,11 @@ export default function InventoryPage() {
                   {customCategories.map(c => (
                     <span key={c} className="badge badge-blue flex items-center gap-1">
                       {c}
-                      <button onClick={() => deleteCategory(c).catch(console.error)} className="hover:text-red-500 ml-0.5">
-                        <X size={10}/>
-                      </button>
+                      {role !== 'kasir' && (
+                        <button onClick={() => deleteCategory(c).catch(console.error)} className="hover:text-red-500 ml-0.5">
+                          <X size={10}/>
+                        </button>
+                      )}
                     </span>
                   ))}
                 </div>

@@ -31,13 +31,13 @@ const NAV = [
 const BOTTOM_NAV = [
   { href: '/',           label: 'Kasir',     icon: ShoppingCart,    adminOnly: false },
   { href: '/dashboard',  label: 'Dashboard', icon: LayoutDashboard, adminOnly: true  },
-  { href: '/inventory',  label: 'Inventori', icon: Package,         adminOnly: true  },
+  { href: '/inventory',  label: 'Inventori', icon: Package,         adminOnly: false },
   { href: '/invoices',   label: 'Invoice',   icon: FileText,        adminOnly: false },
   { href: '/customers',  label: 'Lainnya',   icon: Menu,            adminOnly: false },
 ]
 
 // Admin-only nav items
-const ADMIN_ONLY = ['/dashboard', '/inventory', '/modal', '/reports', '/import', '/migrate', '/spreadsheet']
+const ADMIN_ONLY = ['/dashboard', '/reports', '/import', '/migrate', '/spreadsheet']
 
 export default function Sidebar() {
   const path     = usePathname()
