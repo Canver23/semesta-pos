@@ -7,7 +7,7 @@ import {
 } from 'lucide-react'
 import { clsx } from 'clsx'
 import { useState, useEffect } from 'react'
-import { getSession, logout, type Role } from '@/lib/auth-client'
+import { getSession, peekSession, logout, type Role } from '@/lib/auth-client'
 
 const NAV = [
   { href: '/',           label: 'Kasir',      icon: ShoppingCart    },
@@ -46,11 +46,24 @@ export default function Sidebar() {
   const [role, setRole]   = useState<Role | null>(null)
   const [userName, setUserName] = useState('')
 
+  // Role dibaca dari sesi yang sudah di-cache lebih dulu (tersinkron), baru
+  // disegarkan. Komponen ini di-render ulang di tiap halaman, jadi tanpa ini
+  // role sempat null lagi setiap pindah menu → item admin muncul lalu hilang
+  // (daftar menu "berkedip"/bergeser).
   useEffect(() => {
+    const cached = peekSession()
+    if (cached) {
+      setRole(cached.role)
+      setUserName(cached.name)
+      return
+    }
+    let active = true
     getSession().then(s => {
+      if (!active) return
       setRole(s?.role ?? null)
       setUserName(s?.name ?? '')
     })
+    return () => { active = false }
   }, [])
 
   async function handleLogout() {

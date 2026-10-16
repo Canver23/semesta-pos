@@ -4,6 +4,10 @@
 
 @layer base {
   * { box-sizing: border-box; }
+  /* Cegah konten bergeser 15px setiap kali scrollbar vertikal muncul/hilang
+     saat pindah menu (beberapa halaman lebih tinggi dari viewport, sebagian
+     tidak). Gutter direservasi permanen supaya lebar layout konstan. */
+  html { scrollbar-gutter: stable; }
   body { font-family: system-ui, -apple-system, sans-serif; }
 }
 

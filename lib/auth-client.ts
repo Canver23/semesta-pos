@@ -32,6 +32,13 @@ export async function getSession(force = false): Promise<ClientSession | null> {
   return cache
 }
 
+// Sesi yang sudah dibaca sebelumnya (tanpa memicu request baru). Dipakai
+// komponen (mis. Sidebar) supaya daftar menu tidak sempat berubah DI DALAM
+// satu render saat pindah halaman — role sudah tersedia sejak render pertama.
+export function peekSession(): ClientSession | null {
+  return cacheLoaded ? cache : null
+}
+
 export async function loginKasir(pin: string): Promise<{ ok: boolean; error?: string }> {
   return doLogin({ mode: 'kasir', pin })
 }
