@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createServerClient } from '@/lib/supabase'
+import { validateProduct } from '@/lib/validate'
 import type { Product } from '@/lib/types'
 
 // Map DB row (snake_case) → frontend Product (camelCase)
@@ -41,8 +42,26 @@ function toDbRow(p: Partial<Product>) {
 export async function PUT(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const supabase = createServerClient()
   const { id } = await params
-  const raw = await req.json()
-  const row  = toDbRow(raw as Partial<Product>)
+
+  if (!/^\d+$/.test(id)) {
+    return NextResponse.json({ error: 'ID produk tidak valid' }, { status: 400 })
+  }
+
+  let body: unknown
+  try {
+    body = await req.json()
+  } catch {
+    return NextResponse.json({ error: 'Body bukan JSON yang valid' }, { status: 400 })
+  }
+
+  const v = validateProduct(body, true)
+  if (!v.ok) return NextResponse.json({ error: v.error }, { status: 400 })
+
+  const row = toDbRow(v.value)
+  if (Object.keys(row).length === 0) {
+    return NextResponse.json({ error: 'Tidak ada field yang diubah' }, { status: 400 })
+  }
+
   const { data, error } = await supabase
     .from('products')
     .update(row)

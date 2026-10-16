@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createServerClient } from '@/lib/supabase'
+import { validateInvoice } from '@/lib/validate'
 
 export async function GET() {
   const supabase = createServerClient()
@@ -25,18 +26,18 @@ export async function GET() {
 
 export async function POST(req: Request) {
   const supabase = createServerClient()
-  const body = await req.json()
-  const row = {
-    id:        body.id,
-    cust_id:   body.custId,
-    cust_name: body.custName,
-    date:      body.date,
-    due:       body.due,
-    items:     body.items,
-    total:     body.total,
-    status:    body.status,
-    note:      body.note ?? '',
+
+  let body: unknown
+  try {
+    body = await req.json()
+  } catch {
+    return NextResponse.json({ error: 'Body bukan JSON yang valid' }, { status: 400 })
   }
+
+  const v = validateInvoice(body)
+  if (!v.ok) return NextResponse.json({ error: v.error }, { status: 400 })
+
+  const row = { ...v.value, note: (v.value.note as string) ?? '' }
   const { data, error } = await supabase
     .from('invoices')
     .insert(row)

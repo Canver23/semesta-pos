@@ -163,7 +163,7 @@ function ProductPicker({
 // MAIN POS PAGE
 // ─────────────────────────────────────────────────────────────
 export default function PosPage() {
-  const { products, cart, addToCart, changeQty, removeFromCart, clearCart, addTransaction, updateProduct } = useStore()
+  const { products, cart, addToCart, changeQty, removeFromCart, clearCart, checkout } = useStore()
 
   const [activeCat, setActiveCat]       = useState('Semua')
   const [search, setSearch]             = useState('')
@@ -175,6 +175,9 @@ export default function PosPage() {
   const [showPrintSelect, setPrintSelect] = useState(false)
   // Product picker popup
   const [pickerProduct, setPickerProduct] = useState<Product | null>(null)
+  // Checkout: cegah klik ganda & tampilkan pesan bila stok tidak cukup
+  const [paying, setPaying]   = useState(false)
+  const [payError, setPayError] = useState('')
 
   const categories = ['Semua', ...Array.from(new Set(products.map(p => p.category)))]
 
@@ -191,7 +194,7 @@ export default function PosPage() {
 
   useEffect(() => {
     const fn = (e: KeyboardEvent) => {
-      if (e.key === 'Enter' && showPay && canPay) confirmPayment()
+      if (e.key === 'Enter' && showPay && canPay && !paying) confirmPayment()
     }
     document.addEventListener('keydown', fn)
     return () => document.removeEventListener('keydown', fn)
@@ -218,31 +221,27 @@ export default function PosPage() {
   }
 
   async function confirmPayment() {
-    const now  = new Date()
-    const snap = cart.map(i => ({ name: i.name, qty: i.qty, unit: i.unit, price: i.price }))
-    setCartSnap(snap)
-    const trx = await addTransaction({
-      date:   now.toLocaleDateString('id-ID'),
-      time:   now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
-      items:  cart.map(i => `${i.name} ×${i.qty}`).join(', '),
-      total, cash, change,
-      method: 'Cash',
-    })
-    // Kurangi stok produk (dan varian) sesuai qty yang dibeli
-    await Promise.all(cart.map(async item => {
-      const p = products.find(x => x.id === item.id)
-      if (!p) return
-      const patch: Partial<Product> = { stock: Math.max(0, Math.round((p.stock - item.qty) * 1000) / 1000) }
-      if (item.variant && p.variants?.length) {
-        patch.variants = p.variants.map(v =>
-          v.id === item.variant ? { ...v, stock: Math.max(0, Math.round((v.stock - item.qty) * 1000) / 1000) } : v
-        )
-      }
-      await updateProduct(item.id, patch)
-    }))
-    setLastTrx(trx)
-    setShowPay(false)
-    setShowReceipt(true)
+    if (paying) return
+    setPaying(true)
+    setPayError('')
+    try {
+      // Checkout atomik: server mencatat transaksi DAN mengurangi stok
+      // dalam satu transaksi database — tidak ada lagi penjualan yang
+      // tercatat tanpa stok terpotong (atau stok minus).
+      const trx = await checkout(cart, cash)
+      const snap = cart.map(i => ({
+        name: i.name, qty: i.qty, unit: i.unit, price: i.price,
+      }))
+      setCartSnap(snap)
+      setLastTrx(trx)
+      setShowPay(false)
+      setShowReceipt(true)
+    } catch (e) {
+      // Stok tidak cukup / produk sudah diubah kasir lain → tampilkan pesan
+      setPayError(e instanceof Error ? e.message : 'Checkout gagal, coba lagi')
+    } finally {
+      setPaying(false)
+    }
   }
 
   function newTransaction() {
@@ -251,6 +250,7 @@ export default function PosPage() {
     setLastTrx(null)
     setCashInput('')
     setCartSnap([])
+    setPayError('')
   }
 
   return (
@@ -417,9 +417,19 @@ export default function PosPage() {
               <p className="text-2xl font-semibold text-green-800">{fmt(change)}</p>
             </div>
           )}
+          {payError && (
+            <div className="bg-red-50 border border-red-200 rounded-lg px-3 py-2.5">
+              <p className="text-xs text-red-700 font-medium">⚠ {payError}</p>
+              <p className="text-[11px] text-red-500 mt-1">
+                Transaksi belum tercatat. Periksa stok produk, lalu coba lagi.
+              </p>
+            </div>
+          )}
           <div className="flex gap-2 pt-1">
-            <button onClick={() => setShowPay(false)} className="btn-outline flex-1">Batal</button>
-            <button onClick={confirmPayment} disabled={!canPay} className="btn-blue flex-[2]">Konfirmasi (Enter)</button>
+            <button onClick={() => setShowPay(false)} disabled={paying} className="btn-outline flex-1">Batal</button>
+            <button onClick={confirmPayment} disabled={!canPay || paying} className="btn-blue flex-[2]">
+              {paying ? 'Memproses…' : 'Konfirmasi (Enter)'}
+            </button>
           </div>
         </div>
       </Modal>

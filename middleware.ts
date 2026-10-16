@@ -20,6 +20,7 @@ const KASIR_API = [
   '/api/transactions', '/api/attendance',
   '/api/rekap', '/api/foto-paket',
   '/api/customers', '/api/invoices',
+  '/api/checkout',
 ]
 
 // Produk & kategori: kasir boleh baca DAN tambah/ubah (dipakai halaman

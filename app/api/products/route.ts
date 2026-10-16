@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createServerClient } from '@/lib/supabase'
+import { validateProduct } from '@/lib/validate'
 import type { Product } from '@/lib/types'
 
 // Map DB row (snake_case) → frontend Product (camelCase)
@@ -51,8 +52,18 @@ export async function GET() {
 
 export async function POST(req: Request) {
   const supabase = createServerClient()
-  const body = await req.json()
-  const row  = toDbRow(body)
+
+  let body: unknown
+  try {
+    body = await req.json()
+  } catch {
+    return NextResponse.json({ error: 'Body bukan JSON yang valid' }, { status: 400 })
+  }
+
+  const v = validateProduct(body)
+  if (!v.ok) return NextResponse.json({ error: v.error }, { status: 400 })
+
+  const row = toDbRow(v.value)
   const { data, error } = await supabase
     .from('products')
     .insert(row)

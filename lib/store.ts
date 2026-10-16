@@ -2,7 +2,7 @@
 import { create } from 'zustand'
 import type {
   Product, Customer, Invoice, Transaction,
-  CartItem, AttendanceLog,
+  CartItem, AttendanceLog, ProductVariant,
 } from './types'
 import { generateInvoiceId, generateTrxId } from './utils'
 
@@ -51,6 +51,8 @@ interface StoreState {
   addTransaction: (t: Omit<Transaction, 'id'>) => Promise<Transaction>
   deleteTransaction: (id: string) => Promise<void>
   resetTransactions: () => Promise<void>
+  /** Checkout atomik: stok + transaksi ditulis server dalam satu transaksi DB. */
+  checkout: (items: CartItem[], cash: number) => Promise<Transaction>
 
   cart: CartItem[]
   addToCart: (item: Omit<CartItem, 'qty'>) => void
@@ -234,6 +236,37 @@ export const useStore = create<StoreState>()((set, get) => ({
   resetTransactions: async () => {
     await api('/api/transactions', { method: 'DELETE' })
     set({ transactions: [] })
+  },
+  // Checkout atomik — satu panggilan ke server; stok dan transaksi ditulis
+  // bersamaan di database, jadi keduanya selalu konsisten.
+  checkout: async (items, cash) => {
+    const res = await api<{ transaction: Transaction; products: { id: number; stock: number; variants?: ProductVariant[] }[] }>(
+      '/api/checkout',
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          items: items.map(i => ({
+            id: i.id, name: i.name, qty: i.qty, unit: i.unit, price: i.price, variant: i.variant,
+          })),
+          cash,
+          method: 'Cash',
+        }),
+      },
+    )
+    // Sinkronkan stok lokal dengan stok yang benar-benar tersimpan di database
+    set(s => ({
+      transactions: [res.transaction, ...s.transactions],
+      products: s.products.map(p => {
+        const upd = res.products.find(u => u.id === p.id)
+        if (!upd) return p
+        return {
+          ...p,
+          stock: upd.stock,
+          variants: upd.variants && upd.variants.length ? upd.variants : p.variants,
+        }
+      }),
+    }))
+    return res.transaction
   },
 
   // ── Cart (local only) ─────────────────────────────────────

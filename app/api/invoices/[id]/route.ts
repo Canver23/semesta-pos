@@ -1,14 +1,19 @@
 import { NextResponse } from 'next/server'
 import { createServerClient } from '@/lib/supabase'
+import { validateInvoice } from '@/lib/validate'
 
 // PUT — update status only (Lunas / Belum Lunas)
 export async function PUT(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const supabase = createServerClient()
   const { id } = await params
   const body = await req.json()
+  const status = body?.status
+  if (status !== 'Lunas' && status !== 'Belum Lunas') {
+    return NextResponse.json({ error: 'Status harus "Lunas" atau "Belum Lunas"' }, { status: 400 })
+  }
   const { data, error } = await supabase
     .from('invoices')
-    .update({ status: body.status })
+    .update({ status })
     .eq('id', id)
     .select()
     .single()
@@ -20,21 +25,14 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const supabase = createServerClient()
   const { id } = await params
-  const body = await req.json()
 
-  // Only update fields that were sent
-  const update: Record<string, unknown> = {}
-  if (body.cust_id   !== undefined) update.cust_id   = body.cust_id
-  if (body.cust_name !== undefined) update.cust_name = body.cust_name
-  if (body.date      !== undefined) update.date      = body.date
-  if (body.due       !== undefined) update.due       = body.due
-  if (body.items     !== undefined) update.items     = body.items
-  if (body.total     !== undefined) update.total     = body.total
-  if (body.note      !== undefined) update.note      = body.note
+  // Validasi hanya field yang dikirim; total dihitung ulang dari items.
+  const cek = validateInvoice(await req.json(), true)
+  if (!cek.ok) return NextResponse.json({ error: cek.error }, { status: 400 })
 
   const { data, error } = await supabase
     .from('invoices')
-    .update(update)
+    .update(cek.value)
     .eq('id', id)
     .select()
     .single()

@@ -1,13 +1,17 @@
 import { NextResponse } from 'next/server'
 import { createServerClient } from '@/lib/supabase'
+import { validateCustomer } from '@/lib/validate'
 
 export async function PUT(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const supabase = createServerClient()
   const { id } = await params
-  const body = await req.json()
+
+  const cek = validateCustomer(await req.json(), true)
+  if (!cek.ok) return NextResponse.json({ error: cek.error }, { status: 400 })
+
   const { data, error } = await supabase
     .from('customers')
-    .update(body)
+    .update(cek.value)
     .eq('id', id)
     .select()
     .single()
