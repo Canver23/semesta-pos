@@ -86,7 +86,11 @@ export default function Sidebar() {
   return (
     <>
       {/* ── Desktop Sidebar (hidden on mobile) ─────────── */}
-      <aside className="hidden md:flex flex-col w-52 shrink-0 bg-white border-r border-gray-200 min-h-screen">
+      {/* md:sticky + md:h-screen memaku sidebar di tempatnya. Tanpa ini sidebar
+          (position: static) ikut tergulung lalu melompat tiap pindah menu,
+          karena tinggi dokumen berbeda-beda antar halaman (mis. /import lebih
+          panjang dari halaman lain) → terlihat "goyang". */}
+      <aside className="hidden md:flex flex-col w-52 shrink-0 bg-white border-r border-gray-200 min-h-screen md:sticky md:top-0 md:h-screen md:overflow-y-auto">
         <div className="px-5 py-4 border-b border-gray-200">
           <span className="text-lg font-semibold text-brand-600">
             Semesta <span className="text-brand-400">POS</span>
