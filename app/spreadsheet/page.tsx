@@ -116,7 +116,7 @@ export default function SpreadsheetPage() {
   return (
     <div className="flex min-h-screen">
       <Sidebar />
-      <main className="flex-1 md:ml-0">
+      <main className="flex-1 p-4 md:p-6 md:ml-0">
         <div className="pt-14 md:pt-0 pb-16 md:pb-0 px-4 md:px-6 py-6 max-w-full">
           <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
             <div><h1 className="text-xl font-semibold text-gray-800">Dashboard</h1><p className="text-sm text-gray-400 mt-0.5">Upload XLSX Shopee / TikTok / Tokopedia</p></div>
