@@ -92,6 +92,7 @@ function InvoiceFormModal({ open, onClose, defaultCustId, editInvoice }: Invoice
   })
   const [note, setNote]   = useState('')
   const [items, setItems] = useState<InvoiceItem[]>([])
+  const [saving, setSaving] = useState(false)
 
   // Pre-fill form when editing
   useEffect(() => {
@@ -150,27 +151,34 @@ function InvoiceFormModal({ open, onClose, defaultCustId, editInvoice }: Invoice
     if (!isUmum && !custId) return
     if (!items.length) return
 
-    if (isEdit && editInvoice) {
-      // Update existing invoice
-      await updateInvoice(editInvoice.id, {
-        custId:   isUmum ? 'UMUM' : custId,
-        custName,
-        date, due,
-        items,
-        total: subtotal,
-        note,
-      })
-    } else {
-      await addInvoice({
-        custId: isUmum ? 'UMUM' : custId,
-        custName,
-        date, due, items,
-        total: subtotal,
-        status: 'Belum Lunas',
-        note,
-      })
+    setSaving(true)
+    try {
+      if (isEdit && editInvoice) {
+        // Update existing invoice
+        await updateInvoice(editInvoice.id, {
+          custId:   isUmum ? 'UMUM' : custId,
+          custName,
+          date, due,
+          items,
+          total: subtotal,
+          note,
+        })
+      } else {
+        await addInvoice({
+          custId: isUmum ? 'UMUM' : custId,
+          custName,
+          date, due, items,
+          total: subtotal,
+          status: 'Belum Lunas',
+          note,
+        })
+      }
+      onClose()
+    } catch (e) {
+      alert('Gagal menyimpan invoice: ' + (e instanceof Error ? e.message : 'kesalahan tidak diketahui'))
+    } finally {
+      setSaving(false)
     }
-    onClose()
   }
 
   const canSave = items.length > 0 && (isUmum || !!custId)
@@ -346,8 +354,8 @@ function InvoiceFormModal({ open, onClose, defaultCustId, editInvoice }: Invoice
 
         <div className="flex gap-2 pt-1">
           <button onClick={onClose} className="btn-outline flex-1">Batal</button>
-          <button onClick={save} disabled={!canSave} className={`flex-[2] ${isEdit ? 'btn btn-outline border-amber-400 text-amber-700 hover:bg-amber-50' : 'btn-blue'}`}>
-            {isEdit ? '✏️ Simpan Perubahan' : 'Simpan Invoice'}
+          <button onClick={save} disabled={!canSave || saving} className={`flex-[2] ${isEdit ? 'btn btn-outline border-amber-400 text-amber-700 hover:bg-amber-50' : 'btn-blue'}`}>
+            {saving ? 'Menyimpan…' : isEdit ? '✏️ Simpan Perubahan' : 'Simpan Invoice'}
           </button>
         </div>
       </div>

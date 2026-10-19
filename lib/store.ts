@@ -4,7 +4,7 @@ import type {
   Product, Customer, Invoice, Transaction,
   CartItem, AttendanceLog, ProductVariant,
 } from './types'
-import { generateInvoiceId, generateTrxId } from './utils'
+import { generateTrxId } from './utils'
 
 // ─── Simple fetch helpers ─────────────────────────────────────
 async function api<T>(url: string, options?: RequestInit): Promise<T> {
@@ -177,10 +177,32 @@ export const useStore = create<StoreState>()((set, get) => ({
   invoices: [],
 
   addInvoice: async (inv) => {
-    const sameDay = get().invoices.filter(i => i.date === inv.date).length
-    const id      = generateInvoiceId(sameDay, inv.date)
+    // Nomor urut diambil dari nomor TERBESAR hari itu, bukan jumlah baris:
+    // kalau ada invoice yang dihapus, cara "count + 1" menghasilkan ID duplikat
+    // dan insert ditolak database.
+    const ds = inv.date.replace(/-/g, '')
+    const prefix = `SMT-${ds}-`
+    const maxNum = get().invoices
+      .filter(i => i.id.startsWith(prefix))
+      .reduce((m, i) => Math.max(m, parseInt(i.id.slice(prefix.length), 10) || 0), 0)
+    const id      = `${prefix}${String(maxNum + 1).padStart(4, '0')}`
     const newInv  = { ...inv, id }
-    await api('/api/invoices', { method: 'POST', body: JSON.stringify(newInv) })
+
+    // API menerima snake_case (cust_id / cust_name), bukan camelCase.
+    // Tanpa pemetaan ini validator menolak dengan 400 "Nama pelanggan wajib diisi".
+    const payload: Record<string, unknown> = {
+      id:        newInv.id,
+      cust_id:   newInv.custId,
+      cust_name: newInv.custName,
+      date:      newInv.date,
+      due:       newInv.due,
+      items:     newInv.items,
+      total:     newInv.total,
+      status:    newInv.status,
+      note:      newInv.note ?? '',
+    }
+
+    await api('/api/invoices', { method: 'POST', body: JSON.stringify(payload) })
     set(s => ({ invoices: [newInv as Invoice, ...s.invoices] }))
     return newInv as Invoice
   },
