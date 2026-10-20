@@ -22,7 +22,7 @@ export function num(v: unknown, field: string, opts: { min?: number; max?: numbe
   if (opts.int && !Number.isInteger(v)) return { ok: false, error: `${field} harus bilangan bulat` }
   if (opts.min !== undefined && v < opts.min) return { ok: false, error: `${field} minimal ${opts.min}` }
   if (opts.max !== undefined && v > opts.max) return { ok: false, error: `${field} maksimal ${opts.max}` }
-  if (Math.abs(v) > MAX_NUM) return { ok: false, error: `${field} di luar rentang wajar` }
+  if (Math.abs(v) > (opts.max ?? MAX_NUM)) return { ok: false, error: `${field} di luar rentang wajar` }
   return { ok: true, value: v }
 }
 
@@ -231,7 +231,8 @@ export function validateCustomer(body: unknown, partial = false): Valid<Record<s
       const price = num(p.price, `prices[${i}].harga`, { min: 0 });                   if (!price.ok) return price
       let prodId: number | null = null
       if (p.prodId !== undefined && p.prodId !== null) {
-        const r = num(p.prodId, `prices[${i}].prodId`, { min: 1, int: true }); if (!r.ok) return r
+        // id produk lama berbasis timestamp (13 digit) → jangan pakai MAX_NUM uang
+        const r = num(p.prodId, `prices[${i}].prodId`, { min: 1, int: true, max: Number.MAX_SAFE_INTEGER }); if (!r.ok) return r
         prodId = r.value
       }
       prices.push({ prodId, name: name.value, size: size.value, unit: unit.value, price: price.value })
