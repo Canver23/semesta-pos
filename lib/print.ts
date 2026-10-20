@@ -123,6 +123,8 @@ function thermalCSS(paperWidth: '58mm' | '80mm', w: string): string {
     .item-row { margin: 1.8mm 0; }
     .item-name { font-weight: 800; font-size: ${s ? '9.5pt' : '10.5pt'}; word-break: break-word; }
     .item-detail { display: flex; justify-content: space-between; gap: 2mm; font-size: ${s ? '9pt' : '10pt'}; }
+    .item-detail > span { white-space: nowrap; }
+    .item-detail > span:first-child { min-width: 0; overflow: hidden; text-overflow: clip; }
     .total-row { display: flex; justify-content: space-between; font-size: ${s ? '12pt' : '13pt'}; font-weight: 800; padding: 1mm 0; }
     .sub-row { display: flex; justify-content: space-between; font-size: ${s ? '9pt' : '10pt'}; padding: 0.5mm 0; }
     .footer-text { text-align: center; font-size: ${s ? '8.5pt' : '9pt'}; margin-top: 2mm; }
@@ -191,7 +193,8 @@ export function buildThermalStrukHTML(
   <style>${thermalCSS(paperWidth, w)}</style></head><body>
   <div class="store-name">${STORE_INFO.name}</div>
   <div class="divider"></div>
-  <div class="meta">${trx.date} ${trx.time} · ${trx.id}</div>
+  <div class="meta">${trx.date} ${trx.time}</div>
+  <div class="meta">${trx.id}</div>
   <div class="divider"></div>
   ${itemRows}
   <div class="divider-solid"></div>
