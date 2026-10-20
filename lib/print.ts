@@ -105,6 +105,8 @@ export function buildInvoiceHTML(inv: Invoice): string {
 // CSS THERMAL — hitam pekat, huruf tebal (printer thermal tipis kalau
 // warna abu-abu / weight normal / garis putus-putus)
 // ─────────────────────────────────────────────────────────────
+function money(n: number) { return fmt(n).replace(/^Rp\s*/, '') }
+
 function thermalCSS(paperWidth: '58mm' | '80mm', w: string): string {
   const s = paperWidth === '58mm'
   return `
@@ -122,9 +124,9 @@ function thermalCSS(paperWidth: '58mm' | '80mm', w: string): string {
     .meta { font-size: ${s ? '8.5pt' : '9pt'}; text-align: center; }
     .item-row { margin: 1.8mm 0; }
     .item-name { font-weight: 800; font-size: ${s ? '9.5pt' : '10.5pt'}; word-break: break-word; }
-    .item-detail { display: flex; justify-content: space-between; gap: 2mm; font-size: ${s ? '9pt' : '10pt'}; }
+    .item-detail { display: flex; justify-content: space-between; gap: 1.5mm; font-size: ${s ? '8.5pt' : '9.5pt'}; }
     .item-detail > span { white-space: nowrap; }
-    .item-detail > span:first-child { min-width: 0; overflow: hidden; text-overflow: clip; }
+    .item-detail > span:first-child { min-width: 0; overflow: hidden; }
     .total-row { display: flex; justify-content: space-between; font-size: ${s ? '12pt' : '13pt'}; font-weight: 800; padding: 1mm 0; }
     .sub-row { display: flex; justify-content: space-between; font-size: ${s ? '9pt' : '10pt'}; padding: 0.5mm 0; }
     .footer-text { text-align: center; font-size: ${s ? '8.5pt' : '9pt'}; margin-top: 2mm; }
@@ -142,7 +144,7 @@ export function buildThermalHTML(inv: Invoice, paperWidth: '58mm' | '80mm' = '58
     <div class="item-row">
       <div class="item-name">${item.name}${item.size ? ` (${item.size})` : ''}</div>
       <div class="item-detail">
-        <span>${item.qty} ${item.unit} × ${fmt(item.price)}</span>
+        <span>${item.qty} ${item.unit} × ${money(item.price)}</span>
         <span><strong>${fmt(item.total)}</strong></span>
       </div>
     </div>`).join('')
@@ -184,7 +186,7 @@ export function buildThermalStrukHTML(
     <div class="item-row">
       <div class="item-name">${item.name}</div>
       <div class="item-detail">
-        <span>${item.qty} ${item.unit}${item.price ? ` × ${fmt(item.price)}` : ''}</span>
+        <span>${item.qty} ${item.unit}${item.price ? ` × ${money(item.price)}` : ''}</span>
         <span>${item.price ? `<strong>${fmt(item.price * item.qty)}</strong>` : ''}</span>
       </div>
     </div>`).join('')
