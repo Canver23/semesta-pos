@@ -92,6 +92,7 @@ function InvoiceFormModal({ open, onClose, defaultCustId, editInvoice }: Invoice
   })
   const [note, setNote]   = useState('')
   const [items, setItems] = useState<InvoiceItem[]>([])
+  const [catQ, setCatQ]   = useState('')
   const [saving, setSaving] = useState(false)
 
   // Pre-fill form when editing
@@ -183,6 +184,13 @@ function InvoiceFormModal({ open, onClose, defaultCustId, editInvoice }: Invoice
 
   const canSave = items.length > 0 && (isUmum || !!custId)
 
+  // Cari item katalog (harga khusus pelanggan ★ didahulukan)
+  const catKey = catQ.trim().toLowerCase()
+  const catHits = !catKey ? [] : [
+    ...(!isUmum && cust ? cust.prices.map((p, i) => ({ key: `cust-${i}`, label: `${p.name}${p.size ? ` (${p.size})` : ''}`, price: p.price, star: true })) : []),
+    ...products.map(p => ({ key: `prod-${p.id}`, label: `${p.name}${p.size ? ` (${p.size})` : ''}`, price: p.price, star: false })),
+  ].filter(o => o.label.toLowerCase().includes(catKey)).slice(0, 40)
+
   return (
     <Modal open={open} onClose={onClose} title={isEdit ? `Edit Invoice — ${editInvoice?.id}` : 'Buat Invoice'} size="xl">
       <div className="flex flex-col gap-4">
@@ -239,29 +247,27 @@ function InvoiceFormModal({ open, onClose, defaultCustId, editInvoice }: Invoice
           </div>
         )}
 
-        {/* Quick add */}
-        <div className="flex gap-2">
-          <select className="input flex-1 text-sm"
-            onChange={e => { addFromCatalog(e.target.value); e.currentTarget.value = '' }}
-            defaultValue="">
-            <option value="">+ Tambah item dari katalog...</option>
-            {!isUmum && cust && cust.prices.length > 0 && (
-              <optgroup label={`★ Harga Khusus ${cust.name}`}>
-                {cust.prices.map((p, i) => (
-                  <option key={`cust-${i}`} value={`cust-${i}`}>
-                    {p.name} ({p.size || '-'}) — {fmt(p.price)} ★
-                  </option>
+        {/* Quick add — cari dari katalog */}
+        <div className="flex gap-2 items-start">
+          <div className="relative flex-1">
+            <input className="input text-sm w-full" value={catQ} autoComplete="off"
+              onChange={e => setCatQ(e.target.value)}
+              placeholder="🔍 Cari barang dari katalog... (nama / ukuran)" />
+            {catKey.length > 0 && (
+              <div className="absolute z-30 left-0 right-0 mt-1 max-h-64 overflow-y-auto bg-white border border-gray-200 rounded-lg shadow-lg">
+                {catHits.length === 0 && (
+                  <div className="px-3 py-2 text-xs text-gray-400">Tidak ada barang cocok</div>
+                )}
+                {catHits.map(o => (
+                  <button key={o.key} type="button" onClick={() => { addFromCatalog(o.key); setCatQ('') }}
+                    className="w-full flex items-center justify-between gap-2 px-3 py-1.5 text-xs text-left border-b border-gray-100 last:border-0 hover:bg-brand-50">
+                    <span className="truncate">{o.star ? '★ ' : ''}{o.label}</span>
+                    <span className="whitespace-nowrap text-gray-500">{fmt(o.price)}</span>
+                  </button>
                 ))}
-              </optgroup>
+              </div>
             )}
-            <optgroup label="Katalog Umum">
-              {products.map(p => (
-                <option key={`prod-${p.id}`} value={`prod-${p.id}`}>
-                  {p.name} ({p.size || '-'}) — {fmt(p.price)}
-                </option>
-              ))}
-            </optgroup>
-          </select>
+          </div>
           <button
             onClick={() => setItems(prev => [...prev, { name: '', size: '', qty: 1, unit: 'Pcs', price: 0, total: 0 }])}
             className="btn-outline whitespace-nowrap">

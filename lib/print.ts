@@ -102,6 +102,36 @@ export function buildInvoiceHTML(inv: Invoice): string {
 }
 
 // ─────────────────────────────────────────────────────────────
+// CSS THERMAL — hitam pekat, huruf tebal (printer thermal tipis kalau
+// warna abu-abu / weight normal / garis putus-putus)
+// ─────────────────────────────────────────────────────────────
+function thermalCSS(paperWidth: '58mm' | '80mm', w: string): string {
+  const s = paperWidth === '58mm'
+  return `
+    @page { size: ${paperWidth} auto; margin: 0; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    body { font-family: 'Courier New', Consolas, monospace; font-weight: 700;
+           font-size: ${s ? '9.5pt' : '10.5pt'}; line-height: 1.4; color: #000;
+           width: ${w}; padding: 2mm 2mm 8mm; background: white;
+           -webkit-font-smoothing: none; text-rendering: optimizeSpeed; }
+    .center { text-align: center; }
+    .store-name { font-size: ${s ? '14pt' : '15pt'}; font-weight: 800; text-align: center; }
+    .divider { border-top: 1px solid #000; margin: 1.5mm 0; }
+    .divider-solid { border-top: 2px solid #000; margin: 2mm 0; }
+    .meta { font-size: ${s ? '8.5pt' : '9pt'}; text-align: center; }
+    .item-row { margin: 1.8mm 0; }
+    .item-name { font-weight: 800; font-size: ${s ? '9.5pt' : '10.5pt'}; word-break: break-word; }
+    .item-detail { display: flex; justify-content: space-between; gap: 2mm; font-size: ${s ? '9pt' : '10pt'}; }
+    .total-row { display: flex; justify-content: space-between; font-size: ${s ? '12pt' : '13pt'}; font-weight: 800; padding: 1mm 0; }
+    .sub-row { display: flex; justify-content: space-between; font-size: ${s ? '9pt' : '10pt'}; padding: 0.5mm 0; }
+    .footer-text { text-align: center; font-size: ${s ? '8.5pt' : '9pt'}; margin-top: 2mm; }
+    .no-inv { font-size: ${s ? '8.5pt' : '9pt'}; text-align: center; }
+    .sig-section { display: grid; grid-template-columns: 1fr 1fr; gap: 5mm; margin-top: 4mm; font-size: ${s ? '8.5pt' : '9pt'}; text-align: center; }
+    .sig-line { border-top: 1px solid #000; margin-top: 10mm; padding-top: 1mm; }`
+}
+
+// ─────────────────────────────────────────────────────────────
 // BUILD THERMAL HTML — 58mm / 80mm (bluetooth printer HP)
 // ─────────────────────────────────────────────────────────────
 export function buildThermalHTML(inv: Invoice, paperWidth: '58mm' | '80mm' = '58mm'): string {
@@ -116,27 +146,7 @@ export function buildThermalHTML(inv: Invoice, paperWidth: '58mm' | '80mm' = '58
     </div>`).join('')
 
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${inv.id}</title>
-  <style>
-    @page { size: ${paperWidth} auto; margin: 0; }
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: 'Courier New', monospace; font-size: 8pt;
-           width: ${w}; padding: 3mm 2mm; background: white; }
-    .center { text-align: center; }
-    .bold   { font-weight: bold; }
-    .store-name { font-size: 11pt; font-weight: bold; text-align: center; }
-    .divider { border-top: 1px dashed #000; margin: 2mm 0; }
-    .divider-solid { border-top: 1px solid #000; margin: 2mm 0; }
-    .meta { font-size: 7pt; color: #444; }
-    .item-row { margin: 1.5mm 0; }
-    .item-name { font-weight: bold; font-size: 8pt; word-break: break-word; }
-    .item-detail { display: flex; justify-content: space-between; font-size: 7.5pt; color: #333; }
-    .total-row { display: flex; justify-content: space-between; font-size: 9pt; font-weight: bold; padding: 1mm 0; }
-    .sub-row   { display: flex; justify-content: space-between; font-size: 7.5pt; color: #555; padding: 0.5mm 0; }
-    .footer-text { text-align: center; font-size: 7pt; color: #666; margin-top: 3mm; }
-    .no-inv { font-size: 7pt; color: #666; text-align: center; }
-    .sig-section { display: grid; grid-template-columns: 1fr 1fr; gap: 5mm; margin-top: 5mm; font-size: 7pt; text-align: center; }
-    .sig-line { border-top: 1px solid #000; margin-top: 12mm; padding-top: 1mm; }
-  </style></head><body>
+  <style>${thermalCSS(paperWidth, w)}</style></head><body>
   <div class="store-name">${STORE_INFO.name}</div>
   <div class="divider"></div>
   <div class="no-inv">${inv.id}</div>
@@ -178,23 +188,7 @@ export function buildThermalStrukHTML(
     </div>`).join('')
 
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Struk ${trx.id}</title>
-  <style>
-    @page { size: ${paperWidth} auto; margin: 0; }
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: 'Courier New', monospace; font-size: 8pt;
-           width: ${w}; padding: 3mm 2mm; background: white; }
-    .center { text-align: center; }
-    .store-name { font-size: 11pt; font-weight: bold; text-align: center; }
-    .divider { border-top: 1px dashed #000; margin: 2mm 0; }
-    .divider-solid { border-top: 1px solid #000; margin: 2mm 0; }
-    .meta { font-size: 7pt; color: #444; text-align: center; }
-    .item-row { margin: 1.5mm 0; }
-    .item-name { font-weight: bold; font-size: 8pt; }
-    .item-detail { display: flex; justify-content: space-between; font-size: 7.5pt; color: #333; }
-    .total-row { display: flex; justify-content: space-between; font-size: 9pt; font-weight: bold; padding: 1mm 0; }
-    .sub-row   { display: flex; justify-content: space-between; font-size: 7.5pt; padding: 0.5mm 0; }
-    .footer-text { text-align: center; font-size: 7pt; color: #666; margin-top: 3mm; }
-  </style></head><body>
+  <style>${thermalCSS(paperWidth, w)}</style></head><body>
   <div class="store-name">${STORE_INFO.name}</div>
   <div class="divider"></div>
   <div class="meta">${trx.date} ${trx.time} · ${trx.id}</div>
