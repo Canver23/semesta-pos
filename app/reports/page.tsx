@@ -84,10 +84,11 @@ export default function ReportsPage() {
     const map = new Map<string, number>()
     monthTrx.forEach(t => {
       t.items.split(', ').forEach(item => {
-        const match = item.match(/^(.+)\s×(\d+)$/)
+        const match = item.match(/^(.+?)\s*×\s*([\d.,]+)$/)
         if (match) {
           const name = match[1].trim()
-          map.set(name, (map.get(name) ?? 0) + parseInt(match[2]))
+          const qty = parseFloat(match[2].replace(/\.(?=\d{3}\b)/g, '').replace(',', '.'))
+          map.set(name, (map.get(name) ?? 0) + (Number.isFinite(qty) ? qty : 0))
         }
       })
     })

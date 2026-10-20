@@ -4,7 +4,7 @@ import { Search, Trash2, Plus, Minus, Smartphone, Monitor, X } from 'lucide-reac
 import Sidebar from '@/components/Sidebar'
 import Modal from '@/components/ui/Modal'
 import { useStore } from '@/lib/store'
-import { fmt, CATEGORY_ICONS, STORE_INFO } from '@/lib/utils'
+import { fmt, fmtQty, parseItemsText, CATEGORY_ICONS, STORE_INFO } from '@/lib/utils'
 import { buildInvoiceHTML, buildThermalStrukHTML, openPrintPopup } from '@/lib/print'
 import type { Product, Transaction } from '@/lib/types'
 import { clsx } from 'clsx'
@@ -160,10 +160,29 @@ function ProductPicker({
 }
 
 // ─────────────────────────────────────────────────────────────
+// QTY INPUT — boleh kosong saat mengetik, boleh desimal (0,5 / 0.5)
+// ─────────────────────────────────────────────────────────────
+function QtyInput({ value, onChange }: { value: number; onChange: (v: number) => void }) {
+  const [txt, setTxt] = useState(String(value))
+  useEffect(() => { setTxt(String(value)) }, [value])
+  return (
+    <input inputMode="decimal" value={txt}
+      onChange={e => {
+        const t = e.target.value.replace(',', '.')
+        setTxt(t)
+        const v = parseFloat(t)
+        if (v > 0) onChange(Math.round(v * 1000) / 1000)
+      }}
+      onBlur={() => setTxt(String(value))}
+      className="text-xs font-medium w-12 text-center border border-gray-200 rounded bg-white outline-none focus:border-brand-400 px-1 py-0.5" />
+  )
+}
+
+// ─────────────────────────────────────────────────────────────
 // MAIN POS PAGE
 // ─────────────────────────────────────────────────────────────
 export default function PosPage() {
-  const { products, cart, addToCart, changeQty, removeFromCart, clearCart, checkout } = useStore()
+  const { products, cart, addToCart, changeQty, setQty, removeFromCart, clearCart, checkout, transactions } = useStore()
 
   const [activeCat, setActiveCat]       = useState('Semua')
   const [search, setSearch]             = useState('')
@@ -178,6 +197,10 @@ export default function PosPage() {
   // Checkout: cegah klik ganda & tampilkan pesan bila stok tidak cukup
   const [paying, setPaying]   = useState(false)
   const [payError, setPayError] = useState('')
+  // Riwayat struk (transaksi tersimpan)
+  const [showHistory, setShowHistory] = useState(false)
+  const [hSearch, setHSearch]         = useState('')
+  const [viewTrx, setViewTrx]         = useState<Transaction | null>(null)
 
   const categories = ['Semua', ...Array.from(new Set(products.map(p => p.category)))]
 
@@ -187,10 +210,14 @@ export default function PosPage() {
     return matchCat && matchQ
   })
 
-  const total  = cart.reduce((s, i) => s + i.price * i.qty, 0)
+  const total  = cart.reduce((s, i) => s + Math.round(i.price * i.qty), 0)
   const cash   = parseInt(cashInput.replace(/\D/g, ''), 10) || 0
   const change = cash - total
   const canPay = cash >= total && cash > 0
+
+  const hList = hSearch.trim()
+    ? transactions.filter(t => `${t.id} ${t.items} ${t.total}`.toLowerCase().includes(hSearch.trim().toLowerCase()))
+    : transactions
 
   useEffect(() => {
     const fn = (e: KeyboardEvent) => {
@@ -257,16 +284,16 @@ export default function PosPage() {
     <div className="flex min-h-screen pt-14 pb-16 md:pt-0 md:pb-0">
       <Sidebar />
 
-      <main className="flex flex-1 flex-col md:flex-row">
+      <main className="flex flex-1 flex-col md:flex-row min-w-0 overflow-x-hidden">
         {/* ── Left: Products ─────────────────────────────── */}
-        <div className="flex flex-col flex-1 p-3 md:p-4 gap-3">
+        <div className="flex flex-col flex-1 min-w-0 p-3 md:p-4 gap-3">
           <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-xl px-3 py-2">
             <Search size={14} className="text-gray-400" />
             <input className="flex-1 text-sm outline-none bg-transparent"
               placeholder="Cari produk..." value={search} onChange={e => setSearch(e.target.value)} />
           </div>
 
-          <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-thin">
+          <div className="flex flex-wrap gap-2">
             {categories.map(c => (
               <button key={c} onClick={() => setActiveCat(c)}
                 className={clsx(
@@ -332,9 +359,15 @@ export default function PosPage() {
 
         {/* ── Right: Cart ──────────────────────────────── */}
         <div className="w-full md:w-72 flex flex-col bg-white border-t md:border-t-0 md:border-l border-gray-200 md:sticky md:top-0 md:self-start md:max-h-screen">
-          <div className="px-4 py-3 border-b border-gray-200">
-            <p className="font-medium text-sm">Order Saat Ini</p>
-            <p className="text-xs text-gray-400">{cart.reduce((s, i) => s + i.qty, 0)} item</p>
+          <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between gap-2">
+            <div>
+              <p className="font-medium text-sm">Order Saat Ini</p>
+              <p className="text-xs text-gray-400">{fmtQty(Math.round(cart.reduce((s, i) => s + i.qty, 0) * 1000) / 1000)} item</p>
+            </div>
+            <button onClick={() => { setHSearch(''); setShowHistory(true) }}
+              className="text-xs px-2.5 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-brand-50 hover:border-brand-200 hover:text-brand-800 transition">
+              🧾 Struk
+            </button>
           </div>
           <div className="flex-1 min-h-0 overflow-y-auto flex flex-col scrollbar-thin">
             <div className="px-3 py-3 flex flex-col gap-2">
@@ -355,9 +388,7 @@ export default function PosPage() {
                   <div className="flex items-center gap-1">
                     <button onClick={() => changeQty(item.id, item.variant, -0.5)} className="w-6 h-6 rounded border border-gray-200 bg-white flex items-center justify-center hover:bg-gray-100 text-gray-500 text-xs font-bold">½-</button>
                     <button onClick={() => changeQty(item.id, item.variant, -1)} className="w-6 h-6 rounded border border-gray-200 bg-white flex items-center justify-center hover:bg-gray-100"><Minus size={11}/></button>
-                    <input type="number" step="0.001" min="0.001" value={item.qty}
-                      onChange={e => { const v = parseFloat(e.target.value); if (v > 0) changeQty(item.id, item.variant, v - item.qty) }}
-                      className="text-xs font-medium w-12 text-center border border-gray-200 rounded bg-white outline-none focus:border-brand-400 px-1 py-0.5" />
+                    <QtyInput value={item.qty} onChange={v => setQty(item.id, item.variant, v)} />
                     <button onClick={() => changeQty(item.id, item.variant, 1)} className="w-6 h-6 rounded border border-gray-200 bg-white flex items-center justify-center hover:bg-gray-100"><Plus size={11}/></button>
                   </div>
                   <button onClick={() => removeFromCart(item.id, item.variant)} className="w-6 h-6 rounded border border-gray-200 flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 hover:border-red-200 transition">
@@ -491,6 +522,58 @@ export default function PosPage() {
             <div className="flex gap-2">
               <button onClick={() => setPrintSelect(true)} className="btn-blue flex-1 py-2.5">🖨 Cetak</button>
               <button onClick={newTransaction} className="btn-outline flex-1 py-2.5">Transaksi Baru</button>
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      {/* ── Riwayat struk ─────────────────────────────── */}
+      <Modal open={showHistory} onClose={() => setShowHistory(false)} title="Struk Tersimpan" size="md">
+        <div className="flex flex-col gap-2">
+          <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-xl px-3 py-2">
+            <Search size={14} className="text-gray-400" />
+            <input className="flex-1 text-sm outline-none bg-transparent" placeholder="Cari no. struk / nama barang…"
+              value={hSearch} onChange={e => setHSearch(e.target.value)} />
+          </div>
+          <div className="max-h-[60vh] overflow-y-auto flex flex-col gap-2 scrollbar-thin">
+            {hList.length === 0 && <p className="text-center text-sm text-gray-400 py-8">Belum ada struk</p>}
+            {hList.map(t => (
+              <button key={t.id} onClick={() => { setViewTrx(t); setShowHistory(false) }}
+                className="text-left bg-gray-50 rounded-lg px-3 py-2 border border-transparent hover:bg-brand-50 hover:border-brand-200 transition">
+                <div className="flex justify-between text-xs font-medium">
+                  <span>{t.date} {t.time}</span><span>{fmt(t.total)}</span>
+                </div>
+                <p className="text-[11px] text-gray-500 truncate">{t.id} · {t.items}</p>
+              </button>
+            ))}
+          </div>
+        </div>
+      </Modal>
+
+      {/* ── Detail struk lama ─────────────────────────── */}
+      <Modal open={!!viewTrx} onClose={() => setViewTrx(null)} title={`Struk — ${viewTrx?.id ?? ''}`} size="md">
+        {viewTrx && (
+          <div className="flex flex-col gap-3">
+            <div className="bg-gray-50 rounded-lg p-4 font-mono text-xs">
+              <p className="font-bold text-center text-sm mb-0.5">{STORE_INFO.name}</p>
+              <p className="text-center text-gray-400 mb-2">{viewTrx.date} {viewTrx.time} · {viewTrx.id}</p>
+              <hr className="border-dashed border-gray-300 mb-2"/>
+              {parseItemsText(viewTrx.items).map((item, i) => (
+                <div key={i} className="flex justify-between">
+                  <span>{item.name} ×{fmtQty(item.qty)}</span>
+                </div>
+              ))}
+              <hr className="border-dashed border-gray-300 my-2"/>
+              <div className="flex justify-between font-bold"><span>Total</span><span>{fmt(viewTrx.total)}</span></div>
+              <div className="flex justify-between text-gray-500 mt-0.5"><span>Cash</span><span>{fmt(viewTrx.cash)}</span></div>
+              <div className="flex justify-between text-gray-500"><span>Kembalian</span><span>{fmt(viewTrx.change)}</span></div>
+            </div>
+            <div className="flex gap-2">
+              <button onClick={() => openPrintPopup(buildThermalStrukHTML(viewTrx, parseItemsText(viewTrx.items).map(i => ({ ...i, unit: '' })), '58mm'))}
+                className="btn-outline flex-1 py-2.5">🖨 58mm</button>
+              <button onClick={() => openPrintPopup(buildThermalStrukHTML(viewTrx, parseItemsText(viewTrx.items).map(i => ({ ...i, unit: '' })), '80mm'))}
+                className="btn-outline flex-1 py-2.5">🖨 80mm</button>
+              <button onClick={() => setViewTrx(null)} className="btn-blue flex-1 py-2.5">Tutup</button>
             </div>
           </div>
         )}

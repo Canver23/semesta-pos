@@ -127,8 +127,11 @@ export async function fallbackCheckout(
 
     if (updErr || !kena || kena.length === 0) {
       await rollback()
+      const desimal = updErr && /invalid input syntax|integer|numeric/i.test(updErr.message)
       return { ok: false, status: 409,
-        error: `Stok ${p.name} berubah saat transaksi diproses. Silakan ulangi.` }
+        error: desimal
+          ? `Stok ${p.name} belum mendukung jumlah desimal (kolom stok masih bilangan bulat). Jalankan migrasi stok desimal di Supabase.`
+          : `Stok ${p.name} berubah saat transaksi diproses. Silakan ulangi.` }
     }
     diterapkan.push({ id, stock: p.stock, variants: p.variants })
     terbaru.push({ id, name: p.name, stock: stokBaru, variants: varianBaru })

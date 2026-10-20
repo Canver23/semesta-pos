@@ -164,7 +164,7 @@ export function buildThermalHTML(inv: Invoice, paperWidth: '58mm' | '80mm' = '58
 // ─────────────────────────────────────────────────────────────
 export function buildThermalStrukHTML(
   trx: { id: string; date: string; time: string; total: number; cash: number; change: number },
-  items: { name: string; qty: number; unit: string; price: number }[],
+  items: { name: string; qty: number; unit: string; price?: number }[],
   paperWidth: '58mm' | '80mm' = '58mm'
 ): string {
   const w = paperWidth === '58mm' ? '54mm' : '76mm'
@@ -172,8 +172,8 @@ export function buildThermalStrukHTML(
     <div class="item-row">
       <div class="item-name">${item.name}</div>
       <div class="item-detail">
-        <span>${item.qty} ${item.unit} × ${fmt(item.price)}</span>
-        <span><strong>${fmt(item.price * item.qty)}</strong></span>
+        <span>${item.qty} ${item.unit}${item.price ? ` × ${fmt(item.price)}` : ''}</span>
+        <span>${item.price ? `<strong>${fmt(item.price * item.qty)}</strong>` : ''}</span>
       </div>
     </div>`).join('')
 

@@ -8,6 +8,16 @@ export const fmtQty = (n: number) =>
 export const fmt = (n: number) =>
   'Rp ' + Math.round(n).toLocaleString('id-ID')
 
+/** Pecah teks items transaksi ("Tulip 24 ×2, Kantong HD ×0.5") jadi baris struk. */
+export function parseItemsText(items: string): { name: string; qty: number }[] {
+  return (items || '').split(',').map(s => s.trim()).filter(Boolean).map(s => {
+    const m = s.match(/^(.*?)\s*×\s*([\d.,]+)$/)
+    if (!m) return { name: s, qty: 1 }
+    const qty = parseFloat(m[2].replace(/\.(?=\d{3}\b)/g, '').replace(',', '.'))
+    return { name: m[1].trim(), qty: Number.isFinite(qty) && qty > 0 ? qty : 1 }
+  })
+}
+
 export const fmtDate = (d: string) => {
   if (!d) return '-'
   const [y, m, dd] = d.split('-')
