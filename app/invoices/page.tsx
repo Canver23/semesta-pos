@@ -255,6 +255,7 @@ function InvoiceFormModal({ open, onClose, defaultCustId, editInvoice }: Invoice
             <input className="input text-sm w-full" value={catQ} autoComplete="off"
               onChange={e => { setCatQ(e.target.value); setCatOpen(true) }}
               onFocus={() => setCatOpen(true)}
+              onClick={() => setCatOpen(true)}
               onBlur={() => setCatOpen(false)}
               onKeyDown={e => { if (e.key === 'Escape') setCatOpen(false) }}
               placeholder="🔍 Cari barang dari katalog... (klik untuk lihat daftar)" />
