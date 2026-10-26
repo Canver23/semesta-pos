@@ -452,7 +452,7 @@ export default function PosPage() {
             <div className="bg-red-50 border border-red-200 rounded-lg px-3 py-2.5">
               <p className="text-xs text-red-700 font-medium">⚠ {payError}</p>
               <p className="text-[11px] text-red-500 mt-1">
-                Transaksi belum tercatat. Periksa stok produk, lalu coba lagi.
+                Transaksi belum tercatat. Coba lagi; jika tetap gagal, periksa stok & data barang.
               </p>
             </div>
           )}

@@ -93,6 +93,7 @@ function InvoiceFormModal({ open, onClose, defaultCustId, editInvoice }: Invoice
   const [note, setNote]   = useState('')
   const [items, setItems] = useState<InvoiceItem[]>([])
   const [catQ, setCatQ]   = useState('')
+  const [catOpen, setCatOpen] = useState(false)
   const [saving, setSaving] = useState(false)
 
   // Pre-fill form when editing
@@ -186,10 +187,11 @@ function InvoiceFormModal({ open, onClose, defaultCustId, editInvoice }: Invoice
 
   // Cari item katalog (harga khusus pelanggan ★ didahulukan)
   const catKey = catQ.trim().toLowerCase()
-  const catHits = !catKey ? [] : [
+  const catAll = [
     ...(!isUmum && cust ? cust.prices.map((p, i) => ({ key: `cust-${i}`, label: `${p.name}${p.size ? ` (${p.size})` : ''}`, price: p.price, star: true })) : []),
     ...products.map(p => ({ key: `prod-${p.id}`, label: `${p.name}${p.size ? ` (${p.size})` : ''}`, price: p.price, star: false })),
-  ].filter(o => o.label.toLowerCase().includes(catKey)).slice(0, 40)
+  ]
+  const catHits = catAll.filter(o => o.label.toLowerCase().includes(catKey)).slice(0, 60)
 
   return (
     <Modal open={open} onClose={onClose} title={isEdit ? `Edit Invoice — ${editInvoice?.id}` : 'Buat Invoice'} size="xl">
@@ -251,15 +253,22 @@ function InvoiceFormModal({ open, onClose, defaultCustId, editInvoice }: Invoice
         <div className="flex gap-2 items-start">
           <div className="relative flex-1">
             <input className="input text-sm w-full" value={catQ} autoComplete="off"
-              onChange={e => setCatQ(e.target.value)}
-              placeholder="🔍 Cari barang dari katalog... (nama / ukuran)" />
-            {catKey.length > 0 && (
+              onChange={e => { setCatQ(e.target.value); setCatOpen(true) }}
+              onFocus={() => setCatOpen(true)}
+              onBlur={() => setCatOpen(false)}
+              onKeyDown={e => { if (e.key === 'Escape') setCatOpen(false) }}
+              placeholder="🔍 Cari barang dari katalog... (klik untuk lihat daftar)" />
+            {catOpen && (
               <div className="absolute z-30 left-0 right-0 mt-1 max-h-64 overflow-y-auto bg-white border border-gray-200 rounded-lg shadow-lg">
                 {catHits.length === 0 && (
                   <div className="px-3 py-2 text-xs text-gray-400">Tidak ada barang cocok</div>
                 )}
+                {!catKey && catHits.some(o => o.star) && (
+                  <div className="px-3 py-1 text-[10px] uppercase tracking-wide text-brand-700 bg-brand-50">★ Harga khusus pelanggan</div>
+                )}
                 {catHits.map(o => (
-                  <button key={o.key} type="button" onClick={() => { addFromCatalog(o.key); setCatQ('') }}
+                  <button key={o.key} type="button" onMouseDown={e => e.preventDefault()}
+                    onClick={() => { addFromCatalog(o.key); setCatQ(''); setCatOpen(false) }}
                     className="w-full flex items-center justify-between gap-2 px-3 py-1.5 text-xs text-left border-b border-gray-100 last:border-0 hover:bg-brand-50">
                     <span className="truncate">{o.star ? '★ ' : ''}{o.label}</span>
                     <span className="whitespace-nowrap text-gray-500">{fmt(o.price)}</span>

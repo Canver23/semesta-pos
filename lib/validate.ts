@@ -146,7 +146,8 @@ export function validateCheckout(body: unknown): Valid<CheckoutInput> {
   for (let i = 0; i < raw.length; i++) {
     const x = raw[i]
     if (!isObj(x)) return { ok: false, error: `items[${i}] tidak valid` }
-    const id    = num(x.id,    `items[${i}].id`,    { min: 1, int: true })
+    // id produk lama berbasis timestamp (13 digit) → batas aman integer, bukan MAX_NUM uang
+    const id    = num(x.id,    `items[${i}].id`,    { min: 1, int: true, max: Number.MAX_SAFE_INTEGER })
     const name  = str(x.name,  `items[${i}].nama`,  { required: true, max: 200 })
     const qty   = num(x.qty,   `items[${i}].qty`,   { min: 0.001 })
     const unit  = str(x.unit,  `items[${i}].satuan`, { max: 30 })
